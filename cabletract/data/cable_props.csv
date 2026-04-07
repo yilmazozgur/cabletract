@@ -1,0 +1,4 @@
+material,diameter_mm,mass_per_m_kg,E_modulus_Pa,fibre_area_m2,MBL_N,working_load_N,source
+steel_6x19_IWRC_8mm,8.0,0.255,1.10e11,5.0e-5,32400,6480,"Bridon Wire Rope Users Manual 2016 (IWRC 6x19 EIPS grade)"
+dyneema_sk78_8mm_12strand,8.0,0.046,1.09e11,4.6e-5,60000,12000,"Marlow Ropes Excel D12 datasheet 2022 (SK78 12-strand)"
+uhmwpe_spectra_8mm,8.0,0.045,9.20e10,4.5e-5,53000,10600,"Honeywell Spectra technical data 2021 (Spectra 1000 fibre)"

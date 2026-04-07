@@ -1,0 +1,13 @@
+name,category,A,B,C,width_basis,width_count,depth_dependent,typical_depth_cm,A_units_note,source
+moldboard_plow,primary_tillage,652,0,5.1,meter,0.4,True,15,"N/(m*cm); per metre of share width times depth in cm","ASABE D497.7 (2011, R2015) Table 4 — moldboard general purpose"
+chisel_plow_twisted,primary_tillage,91,5.4,0,tool,7,True,18,"N/(tool*cm); per twisted-shovel tool times depth","ASABE D497.7 — chisel plow twisted shovels"
+disk_harrow_tandem,secondary_tillage,309,16,0,meter,2.5,True,10,"N/(m*cm); per metre of cut times depth","ASABE D497.7 — tandem disk harrow"
+field_cultivator_primary,secondary_tillage,46,2.8,0,tool,11,True,10,"N/(tool*cm); per S-tine tool times depth","ASABE D497.7 — field cultivator primary"
+field_cultivator_secondary,secondary_tillage,32,1.9,0,tool,11,True,8,"N/(tool*cm); per S-tine tool times depth","ASABE D497.7 — field cultivator secondary"
+subsoiler_single_shank,primary_tillage,226,0,1.8,shank,1,True,40,"N/(shank*cm); per shank times depth","ASABE D497.7 — subsoiler narrow point"
+sweep_plow,primary_tillage,390,0,1.9,meter,3.0,True,12,"N/(m*cm); per metre of sweep cut times depth","ASABE D497.7 — sweep plow general"
+rotary_hoe,weeding,600,0,0,meter,4.0,False,1,"N/m; rolling pull, depth-independent","Grisso et al. (2007) Virginia Tech extension; rotary hoe"
+row_planter,seeding,500,0,0,row,8,False,1,"N/row; row crop planter w/o fertilizer","ASABE D497.7 — row crop planter"
+grain_drill,seeding,400,0,0,row,24,False,1,"N/row; double-disk grain drill","ASABE D497.7 — grain drill"
+boom_sprayer,spraying,200,0,0,meter,1.0,False,1,"N total; carriage rolling resistance only (boom self-propelled in many designs)","Grisso et al. (2007); rolling resistance"
+rotary_mower_disc,mowing,500,0,0,meter,3.0,False,1,"N/m; pull draft only (PTO power not represented)","ASABE D497.7 — rotary disc mower"

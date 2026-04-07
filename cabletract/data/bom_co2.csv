@@ -1,0 +1,11 @@
+component,unit,kg_per_unit,co2_kg_per_kg,co2_kg_per_unit,source
+steel_structural,kg,1.0,1.9,1.9,"Hammond & Jones, ICE v3 (2019), structural steel hot-rolled section"
+aluminium_extrusion,kg,1.0,8.2,8.2,"Hammond & Jones, ICE v3 (2019), aluminium extrusion virgin"
+copper_wire,kg,1.0,3.8,3.8,"Hammond & Jones, ICE v3 (2019), copper wire and cable"
+li_ion_battery_cell_kWh,kWh,6.0,12.5,75.0,"Emilsson & Dahllöf, IVL Sweden (2019) — 75 kg CO2eq per kWh, 6 kg/kWh cell mass"
+silicon_pv_module_m2,m2,11.0,21.8,240.0,"Fraunhofer ISE (2022) PV LCA — 240 kg CO2eq/m2 of mono-Si module"
+small_wind_turbine_kg,kg,1.0,5.4,5.4,"Schleisner (2000) Renewable Energy 20, small wind LCA average"
+power_electronics_motor_controller_kg,kg,1.0,12.0,12.0,"Hawkins et al. (2013) Comparative LCA of EV powertrains"
+steel_cable_uhmwpe_kg,kg,1.0,1.9,1.9,"Approximated as structural steel; Dyneema variant 9.0 if substituted (Marlow ESG report 2022)"
+diesel_combustion_per_litre,litre,0.832,3.17,2.64,"DEFRA UK GHG conversion factors 2023 — diesel well-to-wheel"
+grid_electricity_eu_average_kWh,kWh,1.0,0.275,0.275,"EEA 2023 — EU-27 average grid intensity 275 g CO2eq/kWh"
