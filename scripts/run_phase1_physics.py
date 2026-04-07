@@ -6,7 +6,7 @@ F1. Cable sag vs pretension for steel / Dyneema / UHMWPE at L = 50, 75, 100 m.
     below 2 cm — the "depth-control envelope".
 
 F2. Anchor reaction envelope: required cable tension vs draft load with the
-    Qin 2024 per-auger lateral capacity overlaid as horizontal bands. We
+    Khand 2024 per-auger lateral capacity overlaid as horizontal bands. We
     plot two regimes simultaneously: (i) the *conventional* implement library
     at conventional tractor speeds (5–9 km/h), where every primary tillage
     operation requires 25+ augers and the architecture is infeasible; and
@@ -142,15 +142,16 @@ def _implement_p50_p90(implement, speed_range_km_h, rng):
 def figure_2_anchor_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
     drafts = np.arange(200.0, 16001.0, 200.0)
     # Two reference per-auger lateral capacities, spanning the published range:
-    #   Qin et al. (2024) — 400 N per 30 cm pile in *loose* sand at a strict
-    #     0.5 inch deflection limit, free-head boundary. Worst-case bound.
+    #   Khand et al. (2024) — 4-pile group raft tests in sand: 1.6 kN total
+    #     lateral on a 4-pile raft, i.e. ~400 N per pile, free-head, taken as
+    #     the conservative loose-sand bound.
     #   Magnum Piering (2024) — 14–20 kN per small fixed-head pile in
     #     medium-dense sand at the IBC2021 1 inch deflection limit. We
     #     plot 2 kN/auger as a defensible middle of that range after a
     #     conservative 7–10× downscale for safety / wear / installation.
-    per_auger_qin = 400.0
+    per_auger_khand = 400.0
     per_auger_magnum = 2000.0
-    auger_counts_qin = [4, 6, 9, 12, 16, 24, 32]
+    auger_counts_khand = [4, 6, 9, 12, 16, 24, 32]
     auger_counts_magnum = [4, 9]
 
     rows = []
@@ -163,8 +164,8 @@ def figure_2_anchor_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
             pulley_height=1.5,
             min_ground_clearance=0.10,
         )
-        env_qin = anchor_reaction_envelope(
-            T_anchor=state.T_anchor, n_augers=9, per_auger_lateral_capacity_N=per_auger_qin
+        env_khand = anchor_reaction_envelope(
+            T_anchor=state.T_anchor, n_augers=9, per_auger_lateral_capacity_N=per_auger_khand
         )
         env_mag = anchor_reaction_envelope(
             T_anchor=state.T_anchor, n_augers=9, per_auger_lateral_capacity_N=per_auger_magnum
@@ -177,8 +178,8 @@ def figure_2_anchor_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
                 "T_anchor_N": state.T_anchor,
                 "sag_mid_m": state.sag_mid,
                 "ground_clearance_m": state.ground_clearance,
-                "n_augers_required_qin_working": env_qin.n_augers_required_working,
-                "n_augers_required_qin_ultimate": env_qin.n_augers_required_ultimate,
+                "n_augers_required_khand_working": env_khand.n_augers_required_working,
+                "n_augers_required_khand_ultimate": env_khand.n_augers_required_ultimate,
                 "n_augers_required_magnum_working": env_mag.n_augers_required_working,
                 "n_augers_required_magnum_ultimate": env_mag.n_augers_required_ultimate,
             }
@@ -221,19 +222,19 @@ def figure_2_anchor_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
     ax.plot(df["draft_load_N"] / 1000.0, df["T_winch_N"] / 1000.0, color="#555555", lw=1.2, ls="--",
             label="Winch-side tension (kN)")
 
-    # Qin (conservative, loose sand, free-head) capacity bands — dashed red shades.
-    qin_colors = ["#ffb3b3", "#ff8080", "#ff3333", "#cc0000", "#990000", "#660000", "#330000"]
+    # Khand (conservative, loose sand, free-head) capacity bands — dashed red shades.
+    khand_colors = ["#ffb3b3", "#ff8080", "#ff3333", "#cc0000", "#990000", "#660000", "#330000"]
     # Extend the y-axis to 20 kN so the 9-auger Magnum reference (18 kN) is visible.
     y_max_kN = max(df["T_anchor_N"].max() / 1000.0 * 1.05, 20.0)
-    for n, color in zip(auger_counts_qin, qin_colors):
-        cap_kN = n * per_auger_qin / 1000.0
+    for n, color in zip(auger_counts_khand, khand_colors):
+        cap_kN = n * per_auger_khand / 1000.0
         if cap_kN > y_max_kN:
             continue
         lw = 2.0 if n == 9 else 1.0
         ax.axhline(cap_kN, color=color, lw=lw, alpha=0.95, ls="--")
         ax.text(
             0.012, cap_kN + 0.10,
-            f"{n} augers · Qin",
+            f"{n} augers · Khand",
             transform=ax.get_yaxis_transform(),
             fontsize=8, ha="left", va="bottom",
             color=color, fontweight="bold" if n == 9 else "normal",
@@ -281,7 +282,7 @@ def figure_2_anchor_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
     ax.set_ylabel("Anchor / winch tension (kN)")
     ax.set_title(
         "F2. Anchor reaction envelope — two per-auger lateral capacity references\n"
-        "Dashed red: Qin 2024 (400 N/auger, loose sand, free-head, worst case)\n"
+        "Dashed red: Khand 2024 (400 N/auger, loose sand, free-head, worst case)\n"
         "Solid blue: Magnum 2024 (2 kN/auger, medium-dense sand, fixed-head, realistic)",
         fontsize=11,
     )
@@ -438,7 +439,7 @@ def main() -> None:
         ref = f2.loc[idx]
         print(
             f"   {label:48s}  T_anchor={ref['T_anchor_N']:6.0f} N  "
-            f"Qin SF=1.15 → {ref['n_augers_required_qin_working']:3.0f} augers  "
+            f"Khand SF=1.15 → {ref['n_augers_required_khand_working']:3.0f} augers  "
             f"Magnum SF=1.15 → {ref['n_augers_required_magnum_working']:3.0f} augers"
         )
 

@@ -122,24 +122,24 @@ def figure_4_draft_comparison(out_png: Path, out_csv: Path) -> pd.DataFrame:
 
     # Two anchor reference envelopes (matching F2 — plotted as raw 9 ×
     # per_auger capacity, the same convention as the F2 horizontal lines).
-    qin_9_kN = 9 * 0.400  # = 3.6 kN
+    khand_9_kN = 9 * 0.400  # = 3.6 kN
     magnum_9_kN = 9 * 2.000  # = 18 kN
 
-    ax.axvline(qin_9_kN, color="#cc0000", lw=2.2, ls="--", alpha=0.95,
-               label=f"9-auger envelope · Qin 2024 (loose sand) = {qin_9_kN:.1f} kN")
+    ax.axvline(khand_9_kN, color="#cc0000", lw=2.2, ls="--", alpha=0.95,
+               label=f"9-auger envelope · Khand 2024 (loose sand) = {khand_9_kN:.1f} kN")
     ax.axvline(magnum_9_kN, color="#003c99", lw=2.2, ls="-", alpha=0.95,
                label=f"9-auger envelope · Magnum 2024 (medium-dense) = {magnum_9_kN:.1f} kN")
 
     # Shade the "loose-sand restricted" zone between the two envelopes,
     # so the reader can see at a glance which implements only run in
     # medium-dense soil.
-    ax.axvspan(qin_9_kN, magnum_9_kN, color="#ffcc66", alpha=0.18,
+    ax.axvspan(khand_9_kN, magnum_9_kN, color="#ffcc66", alpha=0.18,
                label="Loose-sand restricted (Magnum-only) zone")
 
-    # Inline label for the Qin line (under the curve, where space is free).
+    # Inline label for the Khand line (under the curve, where space is free).
     # The Magnum line is named in the upper-right legend.
-    ax.text(qin_9_kN + 0.12, 0.3,
-            "9 augers · Qin", color="#cc0000",
+    ax.text(khand_9_kN + 0.12, 0.3,
+            "9 augers · Khand", color="#cc0000",
             fontsize=9, ha="left", va="bottom", fontweight="bold",
             rotation=90)
 

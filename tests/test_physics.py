@@ -194,9 +194,10 @@ def test_anchor_envelope_safety_factor_inversely_proportional() -> None:
     assert math.isclose(e1.safety_factor_working, 2.0 * e2.safety_factor_working, rel_tol=1e-9)
 
 
-def test_anchor_envelope_qin_2024_single_auger_holds_400N() -> None:
-    """Qin 2024 says one 30 cm pile holds ~400 N at the serviceability limit:
-    that should give a working safety factor of exactly 1.0 at 400 N load."""
+def test_anchor_envelope_khand_2024_single_auger_holds_400N() -> None:
+    """Khand 2024 4-pile raft → ~400 N per pile in the conservative loose-sand
+    interpretation: that should give a working safety factor of exactly 1.0
+    at 400 N load on a single auger."""
     env = anchor_reaction_envelope(T_anchor=400.0, n_augers=1)
     assert math.isclose(env.safety_factor_working, 1.0, rel_tol=1e-9)
 
@@ -283,7 +284,7 @@ ALL_TESTS = [
     test_tension_balance_clearance_respected_in_sag_bound,
     test_anchor_envelope_required_count_grows_with_load,
     test_anchor_envelope_safety_factor_inversely_proportional,
-    test_anchor_envelope_qin_2024_single_auger_holds_400N,
+    test_anchor_envelope_khand_2024_single_auger_holds_400N,
     test_drivetrain_decomposition_recovers_v1_lump,
     test_motor_power_peak_geq_continuous,
     test_motor_power_uses_decomposed_chain,

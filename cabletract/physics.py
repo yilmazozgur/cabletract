@@ -27,13 +27,19 @@ Symbols (SI units throughout):
 
 References:
     - Irvine, H.M. (1981) "Cable Structures", MIT Press — catenary derivation.
-    - Qin et al. (2024) "Lateral capacity of helical pile anchors in sandy
-      soils", Computers and Geotechnics — 30 cm helical pile in dense sand
-      sustains ~400 N lateral load before serviceability failure (we use a
-      conservative envelope of 350 N working / 600 N ultimate per auger).
+    - Khand, M.M.H. (2024) "Lateral capacity of group helical piles in sand:
+      an experimental and numerical study for sustainable infrastructures",
+      International Journal of Geotechnical Engineering 18(7-10):728-742 —
+      4-pile raft tests give ~400 N per pile in the conservative loose-sand
+      interpretation; we adopt that as the worst-case per-auger envelope.
+    - Magnum Piering, Inc. (2024) "Allowable lateral shaft capacity (lbs) —
+      fixed head condition", product datasheet, October 2024 revision —
+      14–20 kN per small fixed-head pile in medium-dense sand at the IBC2021
+      1 inch deflection limit.
     - ASABE EP496.3 — agricultural drivetrain efficiency reference values.
-    - Kollarits & Stiegler (2014) "Cable yarder rope mechanics" — practical
-      sag and elongation values for Dyneema vs steel forestry ropes.
+    - Feyrer, K. (2015) "Wire Ropes: Tension, Endurance, Reliability",
+      2nd ed., Springer — drum capstan, sheave-bending, and elongation
+      reference values for steel wire and synthetic ropes.
 """
 
 from __future__ import annotations
@@ -324,7 +330,7 @@ def tension_balance(
 
 
 # ---------------------------------------------------------------------------
-# 4. Anchor reaction envelope (Qin 2024 helical-pile model)
+# 4. Anchor reaction envelope (Khand 2024 / Magnum 2024 helical-pile model)
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
@@ -348,10 +354,10 @@ def anchor_reaction_envelope(
 ) -> AnchorEnvelope:
     """Check whether ``n_augers`` screw piles can resist a cable tension.
 
-    The lateral capacity of a single 30 cm helical pile in medium-dense
-    sand is taken from Qin et al. (2024) as ~400 N at the serviceability
-    limit. We treat that as the *working* capacity per auger and apply two
-    safety factors:
+    The lateral capacity of a single 30 cm helical pile in loose sand is
+    taken from the conservative-end of Khand et al. (2024) — 4-pile raft
+    tests give ~400 N per pile — at the serviceability limit. We treat
+    that as the *working* capacity per auger and apply two safety factors:
 
     - 1.15 against the working envelope (continuous-load operation)
     - 1.50 against the ultimate envelope (peak transient events)
