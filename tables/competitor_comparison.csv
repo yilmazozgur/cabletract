@@ -1,8 +1,0 @@
-vehicle,form_factor,powertrain,rated_power_kW,operating_speed_km_h,working_width_m,energy_per_ha_kWh,daily_throughput_ha,onboard_battery_kWh,fuel_or_charge,capex_eur,payback_published_yr,off_grid_capable,key_constraint,source
-CableTract (codesigned),cable-driven 2-module,electric (PV+wind+battery),5.0,1.5,1.5,9.21,2.2,9.0,solar+battery,35570,0.8,yes,anchor reaction at primary tillage (3 kN P50 envelope),this work
-Monarch MK-V,conventional 4WD tractor,electric battery,55,9,2.5,52,4.0,70,grid charge (~10 h),85000,5-7,no,heavy daily charge if no on-farm PV,Monarch Tractor 2024 spec sheet (manufacturer claim) and farm trials at UC Davis 2023
-Farmdroid FD-20,autonomous wheeled robot,electric (onboard PV),0.4,1.5,3.0,1.5,1.0,2.4,onboard PV (~6 m^2),75000,4-6,yes (designed for it),sugar beet / row crops only; cannot till,Farmdroid ApS spec sheet 2024 + DLG-Mitteilungen 2023 review
-Kubota LXe-261,compact utility tractor,electric battery,18,8,1.6,30,3.5,30,grid charge (~6 h),52000,6-8,no,grid dependence; chassis weight retains compaction,Kubota AG-Robotics LXe-261 datasheet 2024 (preview)
-EcoRobotix ARA,autonomous wheeled spot sprayer,electric (onboard PV+battery),0.6,2.0,6.0,0.4,8.0,1.5,onboard PV,65000,4-6,yes,spraying only — no tillage / planting / mowing,EcoRobotix ARA brochure 2024
-Naio Oz/Orio,autonomous weeding robot,electric battery,2.5,3.0,1.2,5,3.0,8.0,grid charge,38000,3-5,partial,vegetable / row crops; no heavy draft,Naio Technologies product page 2024 + INRAE field trial 2022
-Conventional 4WD diesel (80 hp),conventional 4WD tractor,diesel ICE,60,8,3.0,168,15.0,n/a,diesel (~12 L/ha),35000,reference,no,fuel cost + soil compaction,reference baseline (used 80 hp 4WD utility tractor)

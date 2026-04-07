@@ -23,13 +23,10 @@ cabletract/         Python package (physics, soil, energy, layout, compaction,
                     economics, uncertainty, ml, variants, simulate, plotting, data/)
 scripts/            Phase runners (run_phase1_physics.py … run_phase7_envelope.py)
 tests/              Regression and unit tests for every phase
-figures/            All 21 manuscript figures (PNG)
-tables/             All 27 manuscript tables (CSV)
-drawings/           TikZ-companion raster drawings
 manuscript/         Compiled PDF of the manuscript
-cabletract_analysis.py
-                    Legacy v1 single-script entry point (kept for back-compat)
 ```
+
+Each phase runner writes its figures and tables into local `figures/` and `tables/` folders on first run.
 
 ## Reproducing the manuscript
 
