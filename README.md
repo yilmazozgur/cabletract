@@ -4,7 +4,7 @@
 
 ![CableTract hero scene — Main Unit, Anchor, and implement carriage on a tensioned cable across a strip](figures/F0b_hero_scene.png)
 
-[Read the paper (PDF)](manuscript/cabletract_manuscript.pdf)
+[Read the paper (PDF)](manuscript/cabletract_manuscript.pdf) · [arXiv:2604.09938](https://arxiv.org/abs/2604.09938)
 
 CableTract is a two-module cable-driven field robot concept in which a stationary Main Unit (winch, motor, battery, PV/wind harvester) and a lighter Anchor module (resisted by helical screw piles) hold a tensioned cable across a strip while a lightweight implement carriage rolls along it — so the heavy bodies stay on the headland and only the carriage enters the field. The carriage runs a 10-implement library *co-designed for the cable architecture* (narrower, shallower, slower, lighter than implements borrowed from conventional tractor inventories).
 
@@ -54,15 +54,19 @@ pytest tests/
 
 ## Citation
 
+Preprint: [arXiv:2604.09938](https://arxiv.org/abs/2604.09938)
+
 ```
 @misc{yilmaz2026cabletract,
-  title  = {CableTract: A Co-Designed Cable-Driven Field Robot for
-            Low-Compaction, Off-Grid Capable Agriculture --
-            A Prototype-Free Feasibility Study},
-  author = {Yilmaz, Ozgur},
-  year   = {2026},
-  note   = {Preprint},
-  url    = {https://github.com/yilmazozgur/cabletract}
+  title         = {CableTract: A Co-Designed Cable-Driven Field Robot for
+                   Low-Compaction, Off-Grid Capable Agriculture --
+                   A Prototype-Free Feasibility Study},
+  author        = {Yilmaz, Ozgur},
+  year          = {2026},
+  eprint        = {2604.09938},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.RO},
+  url           = {https://arxiv.org/abs/2604.09938}
 }
 ```
 
