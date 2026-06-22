@@ -26,3 +26,7 @@ venv/
 *.gls
 *.ist
 .DS_Store
+
+# Internal planning docs (kept local, not published)
+SIM_IMPLEMENTATION_PLAN.md
+REGEN_VERSION_SIM_PLAN.md
