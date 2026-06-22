@@ -12,11 +12,11 @@ This repository contains the full analytical pipeline behind the manuscript: a c
 
 ## Headline numbers (codesigned reference)
 
-- **Energy:** 921 Wh/decare (~18× lower than an 80 hp diesel tractor)
-- **Compaction:** ~98 % reduction in compacted area, ~73× reduction in contact-energy index
-- **Off-grid throughput:** 10–14 decares/day at six bundled sites
-- **NPV vs diesel:** +€3 978 at 25 ha/yr, 8 % discount, 0.82 yr discounted payback
-- **Lifecycle CO₂:** 14.6 kg CO₂eq/ha/yr versus 32.5 for diesel — 2.2× improvement
+- **Energy:** 889 Wh/decare delivered electrical (the four-quadrant drive recovers ~3.5% on sloped fields; the conservative flat-field bound is 921 Wh/decare) — ~4× less *useful (drawbar)* energy and ~13× less *primary fuel* energy than an 80 hp diesel tractor (most of the larger factor is generic ICE→electric conversion efficiency, not the architecture)
+- **Compaction:** ~98 % reduction in compacted area, ~73× reduction in the per-vehicle contact-pressure index (≈21× from p² × ≈3.5× from contact area; a running-gear property, not field-integrated)
+- **Off-grid throughput:** 10–14 decares/day at six bundled sites (climate-conditional; annual energy-positive ≠ hourly autonomous)
+- **Economics:** near-capex-parity with a used diesel tractor (€35,870 vs €35,000, incl. a €300 regen-capable drive). For a buyer **replacing** a tractor, NPV +€3,575 at 25 ha/yr, 8 % discount, 1.3 yr payback on the €870 increment; for an **additive** buyer financing the whole machine, NPV is negative until ~240 ha/yr.
+- **Lifecycle CO₂:** 14.6 kg CO₂eq/ha/yr versus 32.5 for diesel — 2.2× improvement (operational, grid-independent)
 
 ## Repository layout
 
@@ -44,7 +44,7 @@ python scripts/run_phase6b_variants.py
 python scripts/run_phase7_envelope.py
 ```
 
-All input data (TMY summaries, ASABE D497 coefficients, helical pile capacities, cable mechanical properties, BOM CO₂ intensities, field polygon corpus) is bundled under `cabletract/data/` — no live API calls. The full pipeline regenerates all 21 figures and 27 tables from a clean checkout in under ten minutes on a laptop.
+All input data (TMY summaries, ASABE D497 coefficients, helical pile capacities, cable mechanical properties, BOM CO₂ intensities, field polygon corpus) is bundled under `cabletract/data/` — no live API calls. The seven phase scripts regenerate every figure and table in the manuscript (with per-figure CSV companions written into `tables/`) from a clean checkout in under ten minutes on a laptop.
 
 ## Tests
 

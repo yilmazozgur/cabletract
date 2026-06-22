@@ -94,90 +94,81 @@ def figure_13_sobol(out_png: Path, out_csv: Path) -> pd.DataFrame:
 # F14 — Tornado plot for NPV vs diesel
 # ---------------------------------------------------------------------------
 
-def _econ_npv_from_params(sim: CableTractParams) -> float:
-    """Run the simulator on a perturbed CableTractParams, then map the
-    resulting fuel/electricity/payback into the EconParams NPV pipeline.
-
-    The economic baseline is :meth:`EconParams.codesigned`; the function
-    only overrides the fields that the simulator parameter set actually
-    drives (annual hectares, diesel intensity / price, capex split,
-    battery and PV sizes). Everything else — discount rate, horizon,
-    grid price, electric-tractor reference — comes from the codesigned
-    economics record so the tornado plot perturbs *one* parameter at a
-    time around a single coherent reference.
-    """
-    r = run_single(sim)
-    base = EconParams.codesigned()
-    # Capex split mirrors EconParams.codesigned() exactly so the override
-    # sums back to the §5.8 BOM (€35,570 = 17,500 main + 7,500 anchor +
-    # 4,000 install + 3,420 battery + 1,650 PV + 1,500 wind):
-    #   main_unit / cost_cabletract_usd = 17500/35570 = 0.4920
-    #   anchor    / cost_cabletract_usd =  7500/35570 = 0.2109
-    #   install   / cost_cabletract_usd =  4000/35570 = 0.1124
-    # The remaining 18.5 % (battery + PV + wind) is taken from the base
-    # EconParams record below.
-    overrides = {
-        "annual_hectares": r.decares_per_year / 10.0,
-        "diesel_litres_per_ha": sim.fuel_l_per_decare * 10.0,
-        "diesel_price_eur_per_litre": sim.fuel_price_usd_per_l,
-        "capex_main_unit_eur": sim.cost_cabletract_usd * 0.4920,
-        "capex_anchor_eur": sim.cost_cabletract_usd * 0.2109,
-        "capex_install_overhead_eur": sim.cost_cabletract_usd * 0.1124,
-        "battery_capacity_kWh": sim.battery_Wh / 1000.0,
-        "pv_area_m2": sim.solar_area_m2,
-    }
-    kwargs = {f.name: getattr(base, f.name) for f in base.__dataclass_fields__.values()}
-    kwargs.update(overrides)
-    return cabletract_npv_vs_diesel(EconParams(**kwargs))
+# Economic-parameter tornado ranges (perturbed one at a time around the
+# codesigned EconParams reference, at the SAME 25 ha/yr, 12 L/ha,
+# €570-incremental-capex "replacement" frame as the headline NPV). This
+# replaces the earlier simulator-parameter tornado, which silently
+# rescaled the annual area to the machine's full throughput capacity
+# (~271 ha/yr) and the diesel intensity to 20 L/ha, so its absolute euro
+# figures were read at an operating point inconsistent with the rest of
+# the paper. Perturbing the financial drivers directly is the question a
+# sceptical financial reviewer actually asks.
+ECON_TORNADO_RANGES = {
+    "diesel_capex_eur": (30000.0, 45000.0),          # used 80 hp tractor price — the parity assumption
+    "annual_hectares": (10.0, 100.0),                # area worked per year
+    "opex_maintenance_frac_per_yr": (0.02, 0.06),    # CableTract maintenance
+    "diesel_maint_frac_per_yr": (0.03, 0.07),        # diesel maintenance
+    "capex_main_unit_eur": (14000.0, 22000.0),
+    "capex_anchor_eur": (5000.0, 10000.0),
+    "battery_capacity_kWh": (6.0, 14.0),
+    "diesel_litres_per_ha": (8.0, 20.0),
+    "pv_area_m2": (10.0, 30.0),
+    "diesel_price_eur_per_litre": (0.8, 1.8),
+    "capex_battery_eur_per_kWh": (300.0, 450.0),
+    "discount_rate": (0.05, 0.12),
+}
 
 
 def figure_14_tornado(out_png: Path, out_csv: Path) -> pd.DataFrame:
-    prob = default_problem()
+    """Tornado of NPV-vs-diesel sensitivity to the economic drivers.
 
-    # Tornado around the codesigned simulator baseline. We perturb one
-    # CableTractParams field at a time and re-evaluate NPV.
-    base_params = CableTractParams.codesigned()
-    base_npv = _econ_npv_from_params(base_params)
+    The baseline is the codesigned EconParams reference (25 ha/yr, 12 L/ha,
+    8 %, 15 yr, year-8 battery replacement) in the replacement frame
+    (incremental capex = €35,570 - €35,000 = €570), so the baseline NPV is
+    the +€3,978 reported in the abstract and §5.8 — not a separate
+    gross-savings number. Each parameter is moved to its lo/hi bound while
+    all others stay at the reference.
+    """
+    from dataclasses import replace as _replace
+
+    base = EconParams.codesigned()
+    base_npv = cabletract_npv_vs_diesel(base)
 
     rows = []
-    for pr in prob.ranges:
-        rows_one = {}
-        for tag, val in [("lo", pr.lo), ("hi", pr.hi)]:
-            params_kwargs = {f.name: getattr(base_params, f.name) for f in base_params.__dataclass_fields__.values()}
-            params_kwargs[pr.name] = val
-            try:
-                npv_val = _econ_npv_from_params(CableTractParams(**params_kwargs))
-            except Exception:  # noqa: BLE001
-                npv_val = float("nan")
-            rows_one[tag] = npv_val
+    for name, (lo, hi) in ECON_TORNADO_RANGES.items():
+        npv_lo = cabletract_npv_vs_diesel(_replace(base, **{name: lo}))
+        npv_hi = cabletract_npv_vs_diesel(_replace(base, **{name: hi}))
         rows.append({
-            "parameter": pr.name,
-            "lo_bound": pr.lo,
-            "hi_bound": pr.hi,
-            "lo_npv": rows_one["lo"],
-            "hi_npv": rows_one["hi"],
+            "parameter": name,
+            "lo_bound": lo,
+            "hi_bound": hi,
+            "lo_npv": npv_lo,
+            "hi_npv": npv_hi,
             "baseline_npv": base_npv,
-            "swing": abs(rows_one["hi"] - rows_one["lo"]),
+            "swing": abs(npv_hi - npv_lo),
+            "flips_sign": bool(min(npv_lo, npv_hi) < 0.0 < max(npv_lo, npv_hi)),
         })
     df = pd.DataFrame(rows).sort_values("swing", ascending=False).reset_index(drop=True)
-    top = df.head(10)
     df.to_csv(out_csv, index=False)
+    top = df.head(12)
 
     fig, ax = plt.subplots(figsize=(10, 6))
     y = np.arange(len(top))
     centers = top["baseline_npv"].values
     los = np.minimum(top["lo_npv"].values, top["hi_npv"].values)
     his = np.maximum(top["lo_npv"].values, top["hi_npv"].values)
-    ax.barh(y, his - centers, left=centers, color="#2a7a2a", label="parameter at hi bound")
-    ax.barh(y, los - centers, left=centers, color="#cd5c5c", label="parameter at lo bound")
-    ax.axvline(base_npv, color="black", linestyle="--", lw=1.0, label=f"baseline NPV ({base_npv:,.0f} €)")
+    ax.barh(y, his - centers, left=centers, color="#2a7a2a", label="parameter at favourable bound")
+    ax.barh(y, los - centers, left=centers, color="#cd5c5c", label="parameter at adverse bound")
+    ax.axvline(base_npv, color="black", linestyle="--", lw=1.2,
+               label=f"baseline NPV (+{base_npv:,.0f} €, 25 ha/yr)")
+    ax.axvline(0.0, color="#444444", linestyle=":", lw=1.0, label="NPV = 0 (break-even vs diesel)")
     ax.set_yticks(y)
     ax.set_yticklabels(top["parameter"].values, fontsize=9)
     ax.invert_yaxis()
-    ax.set_xlabel("NPV vs diesel reference (€)")
-    ax.set_title("F14. Tornado plot — top-10 NPV swing contributors (codesigned baseline)", fontsize=11)
+    ax.set_xlabel("Incremental NPV vs diesel, replacement frame (€)")
+    ax.set_title("F14. Tornado — NPV sensitivity to economic drivers (25 ha/yr replacement frame)", fontsize=11)
     ax.grid(True, alpha=0.3, axis="x")
-    ax.legend(fontsize=9, loc="lower right")
+    ax.legend(fontsize=8, loc="lower right")
     fig.tight_layout()
     fig.savefig(out_png, dpi=200)
     plt.close(fig)

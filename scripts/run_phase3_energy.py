@@ -49,9 +49,9 @@ TAB_DIR = ROOT / "tables"
 
 # CableTract codesigned-reference duty cycle. Numbers are computed from
 # run_single(CableTractParams.codesigned()) so this driver and Phase 5 share
-# one canonical reference: 921 Wh/decare, ~2 kW average operating draw,
-# 15 m² PV, 9 kWh battery, 6 h daytime working window.
-ENERGY_PER_DECARE_WH = 921.5     # run_single(codesigned()).energy_per_decare_Wh
+# one canonical reference: 889 Wh/decare (regen default, small honest credit),
+# ~2 kW average operating draw, 15 m² PV, 9 kWh battery, 6 h daytime window.
+ENERGY_PER_DECARE_WH = 889.5     # run_single(codesigned()).energy_per_decare_Wh, regen default
 OPERATING_POWER_W = 2000.0       # average winch input power during operation
 IDLE_POWER_W = 50.0              # housekeeping (controllers, comms) when parked
 OPERATING_HOURS = (9, 15)        # 09:00-15:00 = 6 h operating window per day

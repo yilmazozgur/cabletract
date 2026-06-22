@@ -1,8 +1,7 @@
 """Phase 6b — Architectural variants of CableTract.
 
-The slide deck (CableTract_v2.pdf) describes several variants of the
-two-module v1 design that the user wants quantitatively compared in
-the manuscript:
+This module compares several architectural variants of the two-module
+CableTract design against the codesigned baseline:
 
 1. **CableTract+** — a 4-Main-Unit planar cable robot. Two cables pull
    the carriage simultaneously, which (a) splits the draft load
@@ -24,7 +23,7 @@ the manuscript:
    the regen recovery fraction.
 
 Each variant is implemented as a *parameter transformation* on top of
-the v1 `CableTractParams` so we can re-use `simulate.run_single`
+the baseline `CableTractParams` so we can re-use `simulate.run_single`
 without forking the simulator. This keeps the variants comparable on
 the same metrics, on the same code path, and without code duplication.
 """
@@ -56,9 +55,9 @@ class CableTractPlusSpec:
     n_main_units: int = 4
     geometric_load_split: float = 0.707  # 1/sqrt(2) for orthogonal pull
     setup_overhead_reduction: float = 0.6  # fraction of setup_time eliminated
-    # 4 main units + battery + PV + wind + install, no anchor:
-    # (4 × 17500 + 0 + 3420 + 1650 + 1500 + 4000) / 35570 ≈ 2.265
-    capex_multiplier: float = 2.265
+    # 4 main units (each incl. regen drive) + battery + PV + wind + install, no anchor:
+    # (4 × 17800 + 0 + 3420 + 1650 + 1500 + 4000) / 35870 ≈ 2.280
+    capex_multiplier: float = 2.280
     mass_multiplier: float = 2.4   # 4 corner masts vs 1 MU + 1 Anchor
 
 
@@ -236,12 +235,19 @@ def compare_all_variants(p: CableTractParams | None = None) -> List[VariantCompa
     and return a tidy list of comparison rows."""
     base = p if p is not None else CableTractParams.codesigned()
 
+    # The codesigned baseline now includes regenerative braking by default
+    # (winch_efficiency = 0.606 = 0.50 one-way × 1.21 regen recovery, plus a
+    # €300 four-quadrant drive). The "unidirectional" variant strips both back
+    # out to show what regen buys.
+    no_regen = replace(base, winch_efficiency=0.5,
+                       cost_cabletract_usd=base.cost_cabletract_usd - 300.0)
+
     cases = [
-        ("Codesigned baseline (Main Unit + Anchor)", run_single(base)),
+        ("Codesigned baseline (regen default)", run_single(base)),
         ("CableTract+ (4-Main-Unit cable robot)", cabletract_plus_results(base)),
         ("Circular pulley", circular_pulley_results(base)),
         ("Drone-assisted alignment", drone_alignment_results(base)),
-        ("Regenerative return leg", regen_results(base)),
+        ("Unidirectional drivetrain (no regen)", run_single(no_regen)),
     ]
 
     # Costs differ by variant — re-derive from the transformed params.
@@ -250,7 +256,7 @@ def compare_all_variants(p: CableTractParams | None = None) -> List[VariantCompa
         cabletract_plus_params(base).cost_cabletract_usd,
         circular_pulley_params(base).cost_cabletract_usd,
         drone_alignment_params(base).cost_cabletract_usd,
-        regen_params(base).cost_cabletract_usd,
+        no_regen.cost_cabletract_usd,
     ]
 
     return [

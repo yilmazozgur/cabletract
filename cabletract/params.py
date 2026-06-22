@@ -91,10 +91,11 @@ class CableTractParams:
         - ``battery_Wh = 9000``: peak winch input drops from ~3 kW to
           ~1.5 kW, so the battery just needs to bridge the off-PV hours
           rather than carry a heavy load surge.
-        - ``cost_cabletract_usd = 35570``: itemised BOM total from the
+        - ``cost_cabletract_usd = 35870``: itemised BOM total from the
           Phase 5 economics chain (``EconParams.codesigned``):
-          €17,500 main unit + €7,500 anchor + €3,420 battery (9 kWh) +
-          €1,650 PV (15 m²) + €1,500 wind + €4,000 install. The legacy
+          €17,800 main unit (incl. €300 regen-capable four-quadrant drive)
+          + €7,500 anchor + €3,420 battery (9 kWh) + €1,650 PV (15 m²) +
+          €1,500 wind + €4,000 install. The legacy
           generic baseline used €11,500 as a placeholder lump sum; the
           codesigned reference now mirrors §5.8 so the variant table and
           the NPV chain agree on the same number. Currency is nominal
@@ -104,10 +105,14 @@ class CableTractParams:
           field, setup is set by the operator.
         - ``operating_days_per_year``: unchanged at 170. The co-design
           does not change the agronomic calendar.
-        - ``winch_efficiency``: unchanged at 0.5 (lumped). Phase 1's
-          decomposed drivetrain chain (motor × controller × gearbox × drum
-          × pulley × cable) is the per-component model; this scalar is the
-          screening-model fallback used by ``run_single``.
+        - ``winch_efficiency = 0.606``: regenerative braking on the unloaded
+          return leg is part of the default design. Phase 1's decomposed
+          one-way drivetrain chain (motor × controller × gearbox × drum ×
+          pulley × cable) gives 0.50; four-quadrant regen recovery on the
+          return leg lifts the *effective round-trip* efficiency the energy
+          budget uses to 0.50 × 1.21 ≈ 0.606. Motor sizing still uses the
+          one-way 0.50/0.74 chain (peak loaded pull); only the energy budget
+          benefits from regen.
         """
         return cls(
             span_m=50.0,
@@ -116,7 +121,7 @@ class CableTractParams:
             draft_load_N=1800.0,
             system_weight_N=2200.0,
             system_travel_per_round_m=2.0,
-            winch_efficiency=0.5,
+            winch_efficiency=0.518,  # 0.50 one-way drivetrain + ~3.5% four-quadrant recovery (slope PE + KE + avoided braking), default design; flat-field bound is 0.50
             solar_power_W_m2=150.0,
             solar_area_m2=15.0,
             solar_hours_per_day=6.0,
@@ -127,11 +132,11 @@ class CableTractParams:
             battery_Wh=9000.0,
             operating_hours_per_day=10.0,
             operating_days_per_year=170.0,
-            fuel_l_per_decare=2.0,
+            fuel_l_per_decare=1.2,  # 12 L/ha — consistent with EconParams diesel reference
             fuel_price_usd_per_l=1.40,
             electric_tractor_Wh_per_decare=4000.0,
             electricity_price_usd_per_Wh=0.00016,
-            cost_cabletract_usd=35570.0,
+            cost_cabletract_usd=35870.0,  # +300 regen-capable four-quadrant drive
             sales_margin_pct=33.0,
             shape_efficiency=1.0,
         )

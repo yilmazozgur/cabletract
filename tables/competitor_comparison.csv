@@ -1,0 +1,8 @@
+vehicle,form_factor,powertrain,rated_kW,energy_per_ha_kWh,energy_basis,capex_eur,payback_yr,off_grid,primary_tillage,source
+CableTract codesigned,cable-driven 2-module,PV+wind+battery,5.0,9.21,delivered electrical,35570,0.8,yes,yes (co-designed envelope),this work (run_single codesigned)
+Monarch MK-V,4WD tractor,battery EV,55,52,delivered electrical,85000,5-7,no,yes,manufacturer + press
+Farmdroid FD-20,autonomous robot,onboard PV,0.4,1.5,delivered electrical,75000,4-6,yes,no,manufacturer
+Kubota LXe-261,compact tractor,battery EV,18,30,delivered electrical,52000,6-8,no,yes,manufacturer + press
+EcoRobotix ARA,spot sprayer,onboard PV+battery,0.6,0.4,delivered electrical,65000,4-6,yes,no,manufacturer
+Naio Oz/Orio,autonomous weeder,battery,2.5,5,delivered electrical,38000,3-5,partial,no,manufacturer
+Conventional 80 hp diesel,tractor,diesel ICE,60,120,diesel fuel LHV (12 L/ha x 10 kWh/L),35000,ref.,no,yes,Siemens & Bowers 1999; ASABE D497.7

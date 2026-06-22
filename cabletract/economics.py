@@ -194,7 +194,7 @@ class EconParams:
           to the improved payback / NPV.
         """
         return cls(
-            capex_main_unit_eur=17500.0,         # smaller frame, slightly bigger motor; net ~-3 %
+            capex_main_unit_eur=17800.0,         # smaller frame + €300 regen-capable four-quadrant drive (default)
             capex_anchor_eur=7500.0,             # 6 augers + smaller drive, ~-17 %
             capex_battery_eur_per_kWh=380.0,
             battery_capacity_kWh=9.0,            # was 10
@@ -206,7 +206,7 @@ class EconParams:
             battery_replacement_year=8,
             pv_replacement_year=0,
             annual_hectares=25.0,
-            energy_per_ha_kWh=9.21,              # 921 Wh/decare from run_single(codesigned())
+            energy_per_ha_kWh=8.89,              # 889 Wh/decare from run_single(codesigned()), regen default (small honest credit)
             grid_share_kWh_per_ha=0.0,
             grid_price_eur_per_kWh=0.18,
             diesel_litres_per_ha=12.0,

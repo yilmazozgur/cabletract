@@ -1,0 +1,4 @@
+material,load_fraction_MBL,fatigue_life_yr,practical_life_yr,opex_eur_per_yr,co2_kg_per_yr
+steel_6x19_IWRC_8mm,0.05555555555555555,33429.04485738976,8.0,60.0,7.65
+dyneema_sk78_8mm_12strand,0.03,88183.42151675488,8.0,180.0,4.14
+uhmwpe_spectra_8mm,0.033962264150943396,47425.29505610355,8.0,180.0,4.05

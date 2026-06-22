@@ -37,12 +37,13 @@ def main() -> None:
     print("Comparing 3 architectural variants on the codesigned reference parameter set...")
     all_rows = compare_all_variants(CableTractParams.codesigned())
     # Keep only the three variants the manuscript discusses: codesigned
-    # baseline, CableTract+ (4-MU planar cable robot), and regenerative
-    # return leg. Circular pulley and drone alignment are dropped.
+    # baseline (regen default), CableTract+ (4-MU planar cable robot), and
+    # the unidirectional (no-regen) drivetrain that shows what regen buys.
+    # Circular pulley and drone alignment are dropped.
     keep = {
-        "Codesigned baseline (Main Unit + Anchor)",
+        "Codesigned baseline (regen default)",
         "CableTract+ (4-Main-Unit cable robot)",
-        "Regenerative return leg",
+        "Unidirectional drivetrain (no regen)",
     }
     rows = [r for r in all_rows if r.name in keep]
     df = pd.DataFrame([{
@@ -73,9 +74,9 @@ def main() -> None:
     axes[5].axis("off")  # leave the 6th slot empty for breathing room
 
     short_labels = [
-        "Codesigned\nbaseline",
+        "Codesigned\nbaseline\n(regen)",
         "CableTract+\n(4-MU)",
-        "Regen\nreturn",
+        "Unidirectional\n(no regen)",
     ]
     x = np.arange(len(rows))
     for ax, (col, ylabel, color, _) in zip(axes[:5], metrics):
