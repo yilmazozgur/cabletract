@@ -17,14 +17,22 @@ two-component metric:
 
 We deliberately do *not* attempt a calibrated SoilFlex / APSoil
 simulation. The point of the figure is the order-of-magnitude
-comparison, not a soil-rheology paper. The defensible findings are:
+comparison, not a soil-rheology paper.
 
-- CableTract reduces compacted *area* by ~80–90 % vs a tractor on the
-  same field, because only the lightweight carriage rolls inside the
-  field;
-- and reduces the compacted-*energy* index by 2–3 further orders of
-  magnitude, because the carriage's contact pressure is 5–10× lower
-  than a tractor tyre's.
+v3 accounting note: v2 billed the carriage one roller track per 50-m
+*span band* (one traverse per anchor placement), which under-counted
+carriage trafficking by a factor of span/swath (~33x) — the carriage
+must traverse every swath to work the field. v3 bills one traverse per
+swath: trafficked fraction = total track width / swath width
+(0.4 m / 1.5 m ~ 27 % per pass vs the tractor's ~50 %). The defensible
+findings are therefore:
+
+- CableTract reduces trafficked *area* by roughly half vs a tractor on
+  the same field (~27 % vs ~50 % of field area per pass);
+- reduces mean contact pressure ~4.6x (31 vs 143 kPa, below the ~50 kPa
+  subsoil-stress criterion);
+- and reduces the field-integrated p^2-weighted exposure
+  (mean pressure squared x trafficked area x passes) by ~40x.
 
 References:
     Söhne, W. (1953). "Druckverteilung im Boden und Bodenverformung
@@ -126,7 +134,8 @@ class CompactionSummary:
     compacted_area_frac: float
     mean_pressure_kPa: float
     max_pressure_kPa: float
-    compaction_energy_index: float  # ∫ p² dA, normalised by 1 kPa² m²
+    compaction_energy_index: float  # ∫ p² dA over the contact patches (kPa² m²), per-running-gear
+    field_p2_index: float           # mean_p² × trafficked area × passes (kPa² m²), field-integrated
     pass_count: int
 
 
@@ -145,7 +154,7 @@ def compaction_summary_for_vehicle(
     polygon: Polygon,
     vehicle: VehicleSpec,
     span: float = 50.0,
-    swath: float = 2.0,
+    swath: float = 1.5,
 ) -> CompactionSummary:
     """Compute compaction metrics for one vehicle running over one field.
 
@@ -165,15 +174,19 @@ def compaction_summary_for_vehicle(
       times the number of passes, normalised to (kPa² m²).
     """
     if polygon.is_empty or polygon.area <= 0.0:
-        return CompactionSummary(vehicle.name, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, vehicle.pass_count)
+        return CompactionSummary(vehicle.name, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, vehicle.pass_count)
 
     track_total_w = _vehicle_track_total_width(vehicle)
 
     if vehicle.name.startswith("cabletract"):
-        # Carriage runs along strip midlines: compacted area =
-        # Σ piece_length × track_total_width × pass_count, capped at polygon area.
+        # The carriage traverses EVERY swath of each covered strip piece
+        # (one 50-m traverse per `swath` of lateral step), so the rolled
+        # path per pass is piece_area / swath and the trafficked area is
+        # piece_area × (track_total_width / swath). v2 wrongly billed one
+        # traverse per 50-m span band (see module docstring).
         segs = strip_decomposition(polygon, span=span, swath=swath, orientation_deg=0.0)
-        compacted = sum(s.length_m * track_total_w for s in segs) * vehicle.pass_count
+        per_pass_frac = min(track_total_w / max(swath, 1e-9), 1.0)
+        compacted = sum(s.area_m2 for s in segs) * per_pass_frac * vehicle.pass_count
     else:
         # Tractor: per-pass coverage = track_total_width / track_gauge
         per_pass_frac = min(track_total_w / max(vehicle.track_gauge_m, 1e-9), 1.0)
@@ -185,11 +198,15 @@ def compaction_summary_for_vehicle(
     mean_p_Pa = float(np.average(pressures_Pa, weights=loads))
     max_p_Pa = float(max(pressures_Pa))
 
-    # Compaction-energy index Σ p² · A_patch · pass_count, in (kPa² m²)
+    # Per-running-gear index Σ p² · A_patch · pass_count, in (kPa² m²)
     energy = 0.0
     for w, p in zip(vehicle.wheels, pressures_Pa):
         energy += (p / 1000.0) ** 2 * w.contact_area_m2
     energy *= vehicle.pass_count
+
+    # Field-integrated p²-weighted exposure: mean pressure squared times
+    # total trafficked area (already includes pass_count), in kPa² m².
+    field_p2 = (mean_p_Pa / 1000.0) ** 2 * float(compacted)
 
     return CompactionSummary(
         vehicle=vehicle.name,
@@ -199,6 +216,7 @@ def compaction_summary_for_vehicle(
         mean_pressure_kPa=mean_p_Pa / 1000.0,
         max_pressure_kPa=max_p_Pa / 1000.0,
         compaction_energy_index=float(energy),
+        field_p2_index=field_p2,
         pass_count=vehicle.pass_count,
     )
 
@@ -206,7 +224,7 @@ def compaction_summary_for_vehicle(
 def compare_vehicles_on_field(
     polygon: Polygon,
     span: float = 50.0,
-    swath: float = 2.0,
+    swath: float = 1.5,
 ) -> List[CompactionSummary]:
     """Convenience: run both reference vehicles against one field."""
     return [
@@ -219,21 +237,28 @@ def compacted_path_polygon(
     polygon: Polygon,
     vehicle: VehicleSpec,
     span: float = 50.0,
-    swath: float = 2.0,
+    swath: float = 1.5,
 ) -> Polygon:
-    """Return a buffered union of the carriage strip midlines, intersected
+    """Return a buffered union of the carriage roller tracks, intersected
     with the field. Used for the F12 visualisation.
 
-    For a tractor, returns the entire field polygon (whole-field contact).
-    For the CableTract carriage, returns a thin band along each strip
-    midline of width ``track_total_width``.
+    For a tractor, returns the entire field polygon (whole-field contact
+    over a season). For the CableTract carriage, returns one
+    ``track_total_width``-wide band per swath traverse — i.e. a track
+    every ``swath`` metres across the field, matching the corrected
+    per-swath trafficking accounting.
     """
     if not vehicle.name.startswith("cabletract"):
         return polygon
     track_total_w = _vehicle_track_total_width(vehicle)
-    midlines = strip_plan_segments_xy(polygon, span=span, swath=swath, orientation_deg=0.0)
-    if not midlines:
+    minx, miny, maxx, maxy = polygon.bounds
+    bands = []
+    y = miny + swath / 2.0
+    while y < maxy:
+        line = LineString([(minx - 1.0, y), (maxx + 1.0, y)])
+        bands.append(line.buffer(track_total_w / 2.0, cap_style=2))
+        y += swath
+    if not bands:
         return Polygon()
-    bands = [LineString([a, b]).buffer(track_total_w / 2.0, cap_style=2) for a, b in midlines]
     union = unary_union(bands)
     return union.intersection(polygon)

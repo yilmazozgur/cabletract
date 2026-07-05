@@ -30,3 +30,21 @@ venv/
 # Internal planning docs (kept local, not published)
 SIM_IMPLEMENTATION_PLAN.md
 REGEN_VERSION_SIM_PLAN.md
+
+# OS cruft
+.DS_Store
+
+# Local-only material (journal PDFs, internal review reports)
+manuscript/review/
+manuscript/Guide for authors*.pdf
+
+# LaTeX build artifacts
+*.aux
+*.toc
+*.glo
+*.gls
+*.glg
+*.acn
+*.acr
+*.alg
+*.ist

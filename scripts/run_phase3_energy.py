@@ -49,12 +49,20 @@ TAB_DIR = ROOT / "tables"
 
 # CableTract codesigned-reference duty cycle. Numbers are computed from
 # run_single(CableTractParams.codesigned()) so this driver and Phase 5 share
-# one canonical reference: 889 Wh/decare (regen default, small honest credit),
-# ~2 kW average operating draw, 15 m² PV, 9 kWh battery, 6 h daytime window.
-ENERGY_PER_DECARE_WH = 889.5     # run_single(codesigned()).energy_per_decare_Wh, regen default
+# one canonical reference: 1226.8 Wh/decare (regen default, anchoring energy
+# charged), ~2 kW average operating draw, 15 m² PV, 9 kWh battery, 6 h window.
+ENERGY_PER_DECARE_WH = 1226.8    # run_single(codesigned()).energy_per_decare_Wh, incl. anchoring
 OPERATING_POWER_W = 2000.0       # average winch input power during operation
 IDLE_POWER_W = 50.0              # housekeeping (controllers, comms) when parked
 OPERATING_HOURS = (9, 15)        # 09:00-15:00 = 6 h operating window per day
+
+# Seasonal operating calendar. v2 applied the work draw 365 d/yr, charging
+# phantom mid-winter demand against a 170-day agronomic calendar; v3 applies
+# the work draw only inside a contiguous 170-day operating season centred on
+# the local growing season (hemisphere-aware), idle draw otherwise.
+OPERATING_SEASON_DAYS = 170
+SEASON_START_DOY_NORTH = 91      # 1 April – 17 September (170 days)
+SEASON_START_DOY_SOUTH = 274     # 1 October – 19 March (wraps the year end)
 
 PV_AREA_M2_REF = 15.0            # codesigned PV area
 BATTERY_WH_REF = 9000.0          # codesigned battery
@@ -62,13 +70,24 @@ PANEL = PanelSpec(area_m2=PV_AREA_M2_REF)
 WIND = WindSpec(swept_area_m2=2.0)     # small helix turbine, 2 m² swept
 
 
-def operating_load_profile(timestamps: pd.DatetimeIndex) -> np.ndarray:
-    """Return a load profile (W) that matches the codesigned reference duty
-    cycle: OPERATING_POWER_W during the OPERATING_HOURS window each day,
-    IDLE_POWER_W otherwise. Yields ~12 kWh/day average draw — the
-    codesigned CableTract working ~13 decares per day at 0.92 kWh/decare."""
+def _in_season(doy: np.ndarray, latitude_deg: float) -> np.ndarray:
+    start = SEASON_START_DOY_NORTH if latitude_deg >= 0.0 else SEASON_START_DOY_SOUTH
+    end = start + OPERATING_SEASON_DAYS
+    if end <= 365:
+        return (doy >= start) & (doy < end)
+    return (doy >= start) | (doy < end - 365)
+
+
+def operating_load_profile(timestamps: pd.DatetimeIndex, latitude_deg: float = 45.0) -> np.ndarray:
+    """Return a load profile (W) for the codesigned reference duty cycle:
+    OPERATING_POWER_W during the OPERATING_HOURS window on operating-season
+    days (170 d/yr, hemisphere-aware), IDLE_POWER_W otherwise."""
     hour = timestamps.hour
-    operating = (hour >= OPERATING_HOURS[0]) & (hour < OPERATING_HOURS[1])
+    doy = timestamps.dayofyear.to_numpy()
+    operating = (
+        (hour >= OPERATING_HOURS[0]) & (hour < OPERATING_HOURS[1])
+        & _in_season(doy, latitude_deg)
+    )
     return np.where(operating, OPERATING_POWER_W, IDLE_POWER_W).astype(float)
 
 
@@ -118,8 +137,8 @@ def figure_6_calendar_heatmaps(out_png: Path, out_csv: Path) -> pd.DataFrame:
     cbar_ax = fig.add_axes([0.92, 0.15, 0.015, 0.7])
     fig.colorbar(im, cax=cbar_ax, label="decares/day under harvested energy")
     fig.suptitle(
-        f"F6. Daily decares-covered from harvested solar+wind — codesigned reference\n"
-        f"({PV_AREA_M2_REF:.0f} m² PV, 2 m² turbine, 0.92 kWh/decare)",
+        f"Daily decares-covered from harvested solar+wind — codesigned reference\n"
+        f"({PV_AREA_M2_REF:.0f} m² PV, 2 m² turbine, {ENERGY_PER_DECARE_WH/1000.0:.2f} kWh/decare)",
         fontsize=12,
     )
     fig.tight_layout(rect=(0, 0, 0.9, 0.95))
@@ -180,7 +199,7 @@ def figure_7_battery_week(out_png: Path, out_csv: Path) -> pd.DataFrame:
         p_solar = np.array([panel_dc_power(g, t, PANEL) for g, t in zip(wk["ghi_W_m2"], wk["temp_C"])])
         p_wind = np.array([wind_turbine_power(w, WIND) for w in wk["wind_m_s"]])
         p_in = p_solar + p_wind
-        p_out = operating_load_profile(wk.index)
+        p_out = operating_load_profile(wk.index, sites[name].latitude)
 
         soc_df = battery_soc_simulation(p_in, p_out, battery)
 
@@ -218,11 +237,11 @@ def figure_7_battery_week(out_png: Path, out_csv: Path) -> pd.DataFrame:
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncols=4, fontsize=9)
     fig.suptitle(
-        "F7. Battery state-of-charge over each site's brightest 7-day window — codesigned reference\n"
+        "Battery state-of-charge over each site's brightest 7-day window — codesigned reference\n"
         "Hemisphere-symmetric: every panel shows that site's own peak-irradiance week, so all sites\n"
         "are compared on a like-for-like 'best representative summer week' basis.\n"
         f"({PV_AREA_M2_REF:.0f} m² PV, 2 m² turbine, {BATTERY_WH_REF/1000:.0f} kWh pack, "
-        f"{OPERATING_POWER_W/1000:.1f} kW operating draw 09:00–15:00)",
+        f"{OPERATING_POWER_W/1000:.1f} kW operating draw 09:00–15:00 in season)",
         fontsize=10,
     )
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
@@ -276,7 +295,7 @@ def figure_8_feasibility_map(
             panel_i = PanelSpec(area_m2=float(area))
             p_solar = np.array([panel_dc_power(g, t, panel_i) for g, t in zip(tmy["ghi_W_m2"], tmy["temp_C"])])
             p_in = p_solar + p_wind
-            p_out = operating_load_profile(tmy.index)
+            p_out = operating_load_profile(tmy.index, sites[name].latitude)
             for j, cap in enumerate(battery_capacities_Wh):
                 bat = BatterySpec(capacity_Wh=float(cap))
                 soc_df = battery_soc_simulation(p_in, p_out, bat)
@@ -325,9 +344,9 @@ def figure_8_feasibility_map(
     cbar_ax = fig.add_axes([0.92, 0.15, 0.015, 0.7])
     fig.colorbar(im, cax=cbar_ax, label="Annual grid hours")
     fig.suptitle(
-        f"F8. Off-grid feasibility — annual grid hours, codesigned CableTract duty cycle\n"
-        f"({OPERATING_POWER_W/1000:.1f} kW draw 09:00–15:00 daily, "
-        f"{IDLE_POWER_W:.0f} W idle; codesigned reference at "
+        f"Off-grid feasibility — annual grid hours, codesigned CableTract duty cycle\n"
+        f"({OPERATING_POWER_W/1000:.1f} kW draw 09:00–15:00 on {OPERATING_SEASON_DAYS} operating-season days, "
+        f"{IDLE_POWER_W:.0f} W idle otherwise; codesigned reference at "
         f"{PV_AREA_M2_REF:.0f} m² PV / {BATTERY_WH_REF/1000:.0f} kWh)",
         fontsize=11,
     )
@@ -335,6 +354,43 @@ def figure_8_feasibility_map(
     fig.savefig(out_png, dpi=200)
     plt.close(fig)
 
+    df = pd.DataFrame(rows)
+    df.to_csv(out_csv, index=False)
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Per-site reference readout — annual grid hours at the codesigned hardware
+# for all six sites, plus the worst 7-day window. This is the canonical
+# source for the manuscript's per-site off-grid classification table.
+# ---------------------------------------------------------------------------
+
+def site_reference_summary(out_csv: Path) -> pd.DataFrame:
+    sites = load_site_meta()
+    battery = BatterySpec(capacity_Wh=BATTERY_WH_REF)
+    rows = []
+    for name, meta in sites.items():
+        tmy = synthesize_tmy_year(name, year=2024, seed=0)
+        p_solar = np.array([panel_dc_power(g, t, PANEL) for g, t in zip(tmy["ghi_W_m2"], tmy["temp_C"])])
+        p_wind = np.array([wind_turbine_power(w, WIND) for w in tmy["wind_m_s"]])
+        p_in = p_solar + p_wind
+        p_out = operating_load_profile(tmy.index, meta.latitude)
+        soc_df = battery_soc_simulation(p_in, p_out, battery)
+        grid_W = soc_df["p_grid_W"].to_numpy()
+        n_days = len(grid_W) // 24
+        grid_daily = grid_W[: n_days * 24].reshape(n_days, 24).sum(axis=1) / 1000.0
+        worst_week_kWh = float(np.convolve(grid_daily, np.ones(7), mode="valid").max())
+        rows.append(
+            {
+                "site": name,
+                "annual_grid_hours": float((grid_W > 0.0).sum()),
+                "annual_grid_kWh": float(grid_W.sum() / 1000.0),
+                "annual_harvest_kWh": float(p_in.sum() / 1000.0),
+                "annual_load_kWh": float(p_out.sum() / 1000.0),
+                "worst_week_grid_kWh": worst_week_kWh,
+                "annual_surplus_kWh": float((p_in.sum() - p_out.sum()) / 1000.0),
+            }
+        )
     df = pd.DataFrame(rows)
     df.to_csv(out_csv, index=False)
     return df
@@ -350,6 +406,9 @@ def main() -> None:
     f7 = figure_7_battery_week(OUT_DIR / "F7_battery_week.png", TAB_DIR / "F7_battery_week.csv")
     print("Generating F8 — off-grid feasibility maps (3 sites x 100 design points)...")
     f8 = figure_8_feasibility_map(OUT_DIR / "F8_feasibility_map.png", TAB_DIR / "F8_feasibility_map.csv")
+    print("Generating per-site reference readout (all 6 sites at codesigned hardware)...")
+    fsum = site_reference_summary(TAB_DIR / "F8_site_summary.csv")
+    print(fsum.to_string(index=False, float_format="%.1f"))
 
     print()
     print("=== Phase 3 headline numbers ===")

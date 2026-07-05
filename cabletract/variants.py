@@ -4,10 +4,10 @@ This module compares several architectural variants of the two-module
 CableTract design against the codesigned baseline:
 
 1. **CableTract+** — a 4-Main-Unit planar cable robot. Two cables pull
-   the carriage simultaneously, which (a) splits the draft load
-   geometrically across two cables and (b) eliminates the Anchor
-   step-and-reset overhead because the carriage can move continuously
-   in 2-D between the four corners. Slide deck claims ~2× throughput.
+   the carriage simultaneously, which (a) splits the PER-CABLE tension
+   geometrically across two cables (an anchor-envelope benefit, not an
+   energy saving) and (b) eliminates the per-round anchoring cycle
+   because the four corner stations are set once per field.
 2. **Circular / oblique pulley variant** — the Main Unit's output
    pulley swings on a vertical pin so the cable can leave the drum at
    an angle. This lets the Main Unit stay put while the Anchor steps
@@ -47,49 +47,101 @@ class CableTractPlusSpec:
 
     `n_main_units` is the number of corner stations (default 4 — a
     square cable robot). `geometric_load_split` is the fraction of
-    draft each cable carries when two cables actively pull together;
-    for a 90° split it is 1/√2 ≈ 0.707. `setup_overhead_reduction`
-    captures the elimination of the per-strip Anchor reset (the only
-    source of setup time in the v1 model).
+    draft each of two simultaneously-pulling cables carries (1/sqrt(2)
+    for an orthogonal pull); it relaxes the PER-CABLE tension and the
+    per-corner anchor reaction, but it is NOT an energy saving — the
+    winches jointly still deliver the full draft x velocity, so it is
+    deliberately not applied to `draft_load_N` (v2 wrongly did, which
+    booked the tension split as a 29% cut in soil-draft energy).
+    `setup_overhead_reduction` captures the elimination of the per-strip
+    anchoring cycle: the four corner stations are set once per field, so
+    both the per-round re-anchoring energy and most of the per-round
+    setup time disappear; a small carriage-turnaround overhead remains.
     """
     n_main_units: int = 4
-    geometric_load_split: float = 0.707  # 1/sqrt(2) for orthogonal pull
-    setup_overhead_reduction: float = 0.6  # fraction of setup_time eliminated
+    geometric_load_split: float = 0.707  # per-cable tension relief only (anchor envelope)
+    setup_overhead_reduction: float = 0.9  # per-round anchoring cycle eliminated; turnaround remains
     # 4 main units (each incl. regen drive) + battery + PV + wind + install, no anchor:
-    # (4 × 17800 + 0 + 3420 + 1650 + 1500 + 4000) / 35870 ≈ 2.280
-    capex_multiplier: float = 2.280
+    # (4 × 17800 + 0 + 2800 + 3420 + 1650 + 1500 + 4000) / 38670 ≈ 2.198
+    capex_multiplier: float = 2.198
     mass_multiplier: float = 2.4   # 4 corner masts vs 1 MU + 1 Anchor
 
 
 def cabletract_plus_params(p: CableTractParams, spec: CableTractPlusSpec | None = None) -> CableTractParams:
-    """Transform a v1 CableTractParams into the equivalent CableTract+ params.
+    """Transform a CableTractParams into the equivalent CableTract+ params.
 
-    The transformation is *purely* a re-parameterisation: we adjust the
-    effective draft (per cable), the setup time (Anchor reset
-    eliminated), the system cost (4 Main Units), and the strip width
-    (carriage can sweep wider in 2-D mode).
+    Honest accounting (v3): the draft load and strip width are UNCHANGED
+    — decomposing the pull onto two cables does not reduce the work done
+    against the soil, and servoing two axes does not widen the
+    implement. What CT+ genuinely changes: (a) the per-round anchoring
+    cycle disappears (corner stations are set once per field), which
+    removes the per-round anchoring energy and most of the setup time;
+    (b) per-cable tension and per-corner reaction drop by ~0.707 (an
+    anchor-envelope benefit, reported in text, not an energy term);
+    (c) capex multiplies for the four Main Units.
     """
     s = spec if spec is not None else CableTractPlusSpec()
     return replace(
         p,
-        # Each of two simultaneously-pulling cables sees a fraction of the
-        # draft load; the *winch* still has to provide the full force, but
-        # the per-cable tension drops, which is what saved the anchor in
-        # Phase 1's anchor envelope (relevant for the §7 variant comparison).
-        # For throughput, two cables pulling halve the per-round time.
-        draft_load_N=p.draft_load_N * s.geometric_load_split,
-        # Setup time per round is mostly the Anchor reset; CT+ has no Anchor.
+        # Anchoring cycle eliminated: corner stations set once per field.
+        anchoring_energy_Wh_per_round=0.0,
         setup_time_s=p.setup_time_s * (1.0 - s.setup_overhead_reduction),
-        # The carriage can sweep wider strips because both X and Y are servoed.
-        width_m=p.width_m * 1.5,
-        # Capex bumps for the 4 Main Units (no Anchor cost, the v1 cost
-        # already lumped both modules into a single number).
         cost_cabletract_usd=p.cost_cabletract_usd * s.capex_multiplier,
     )
 
 
 def cabletract_plus_results(p: CableTractParams, spec: CableTractPlusSpec | None = None) -> CableTractResults:
     return run_single(cabletract_plus_params(p, spec))
+
+
+# ---------------------------------------------------------------------------
+# Multi-strip anchoring (beam + travelling sheave) — v4 candidate
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class MultiStripAnchorSpec:
+    """Variant 4: anchor each module once per ``k_strips`` strips.
+
+    The Anchor gains a rigid transverse beam (folded for transport) with a
+    travelling sheave trolley; the MU holds by braked wheels + its screws
+    set once per block. Between strips only the trolleys index laterally
+    by one strip width (~``trolley_shift_s``); the full 13-screw anchoring
+    cycle (energy ``anchoring_energy_Wh_per_round`` of the baseline, time
+    ``block_cycle_s``) is paid once per block of ``k_strips``.
+
+    The load-path price: with the trolley at the beam end, the cable pull
+    acts at offset ((k-1)/2 x strip width) from the screw-cluster centre,
+    producing a yaw moment the cluster must resist as differential
+    lateral screw loads (see cabletract.anchoring.beam_yaw_per_screw_N).
+    That check, not the mechanism, is what limits k.
+    """
+    k_strips: int = 4
+    trolley_shift_s: float = 15.0    # index trolleys + re-tension, per strip
+    block_cycle_s: float = 75.0      # full screw cycle + k-strip roll + survey
+    beam_capex_eur: float = 1500.0   # folding beam + trolley + end fittings
+
+
+def multi_strip_anchor_params(p: CableTractParams, spec: MultiStripAnchorSpec | None = None) -> CableTractParams:
+    """Transform the baseline into the multi-strip-anchoring variant.
+
+    Honest accounting: the anchoring ENERGY and the block cycle TIME are
+    divided over k strips; nothing else changes (draft, width, drivetrain
+    identical). The yaw-moment feasibility of k is checked separately and
+    reported in the manuscript text, not assumed here.
+    """
+    s = spec if spec is not None else MultiStripAnchorSpec()
+    k = max(int(s.k_strips), 1)
+    mean_setup_s = ((k - 1) * s.trolley_shift_s + s.block_cycle_s) / k
+    return replace(
+        p,
+        anchoring_energy_Wh_per_round=p.anchoring_energy_Wh_per_round / k,
+        setup_time_s=mean_setup_s,
+        cost_cabletract_usd=p.cost_cabletract_usd + s.beam_capex_eur,
+    )
+
+
+def multi_strip_anchor_results(p: CableTractParams, spec: MultiStripAnchorSpec | None = None) -> CableTractResults:
+    return run_single(multi_strip_anchor_params(p, spec))
 
 
 # ---------------------------------------------------------------------------
@@ -235,15 +287,17 @@ def compare_all_variants(p: CableTractParams | None = None) -> List[VariantCompa
     and return a tidy list of comparison rows."""
     base = p if p is not None else CableTractParams.codesigned()
 
-    # The codesigned baseline now includes regenerative braking by default
-    # (winch_efficiency = 0.606 = 0.50 one-way × 1.21 regen recovery, plus a
-    # €300 four-quadrant drive). The "unidirectional" variant strips both back
+    # The codesigned baseline includes regenerative braking by default
+    # (winch_efficiency = 0.518 = 0.50 one-way chain + a slope-averaged
+    # ~3.5% four-quadrant recovery, ~0 on flat ground, plus a €300
+    # four-quadrant drive). The "unidirectional" variant strips both back
     # out to show what regen buys.
     no_regen = replace(base, winch_efficiency=0.5,
                        cost_cabletract_usd=base.cost_cabletract_usd - 300.0)
 
     cases = [
         ("Codesigned baseline (regen default)", run_single(base)),
+        ("Multi-strip anchoring (beam, k=4)", multi_strip_anchor_results(base)),
         ("CableTract+ (4-Main-Unit cable robot)", cabletract_plus_results(base)),
         ("Circular pulley", circular_pulley_results(base)),
         ("Drone-assisted alignment", drone_alignment_results(base)),
@@ -253,6 +307,7 @@ def compare_all_variants(p: CableTractParams | None = None) -> List[VariantCompa
     # Costs differ by variant — re-derive from the transformed params.
     costs = [
         base.cost_cabletract_usd,
+        multi_strip_anchor_params(base).cost_cabletract_usd,
         cabletract_plus_params(base).cost_cabletract_usd,
         circular_pulley_params(base).cost_cabletract_usd,
         drone_alignment_params(base).cost_cabletract_usd,

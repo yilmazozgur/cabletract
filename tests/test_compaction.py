@@ -116,10 +116,16 @@ def test_summary_pressures_within_wheel_extremes() -> None:
     assert math.isclose(summ.max_pressure_kPa, max(pressures_kPa), rel_tol=1e-9)
 
 
-def test_carriage_compacted_fraction_below_5pct_on_square() -> None:
-    """On a clean rectangle the carriage should compact <5% of the field."""
-    summ = compaction_summary_for_vehicle(SQUARE, CABLETRACT_CARRIAGE, span=50.0)
-    assert summ.compacted_area_frac < 0.05
+def test_carriage_compacted_fraction_equals_track_over_swath() -> None:
+    """On a clean rectangle the carriage traffics track_width/swath of
+    the field per pass (one traverse per swath — the corrected v3
+    accounting; v2 wrongly billed one traverse per 50-m span band)."""
+    swath = 1.5
+    summ = compaction_summary_for_vehicle(SQUARE, CABLETRACT_CARRIAGE, span=50.0, swath=swath)
+    expected = 2.0 * 0.20 / swath  # two 0.20-m rollers over a 1.5-m swath
+    assert abs(summ.compacted_area_frac - expected) < 0.02
+    # And it must be well below the tractor's ~50% per pass.
+    assert summ.compacted_area_frac < 0.35
 
 
 def test_pass_count_scales_compacted_area_linearly() -> None:
@@ -171,7 +177,7 @@ ALL_TESTS = [
     test_carriage_compacted_area_strictly_smaller_than_tractor,
     test_carriage_energy_index_at_least_10x_lower,
     test_summary_pressures_within_wheel_extremes,
-    test_carriage_compacted_fraction_below_5pct_on_square,
+    test_carriage_compacted_fraction_equals_track_over_swath,
     test_pass_count_scales_compacted_area_linearly,
     test_compacted_path_polygon_for_tractor_is_full_field,
     test_compacted_path_polygon_for_carriage_is_proper_subset,

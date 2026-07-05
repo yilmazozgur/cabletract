@@ -364,9 +364,9 @@ def figure_3_motor_power(out_png: Path, out_csv: Path) -> pd.DataFrame:
     ax.bar(x - 0.5 * width, df["P_peak_baseline_W"] / 1000.0, width,
            label="Peak (η=0.50)", color="#1f77b4", alpha=0.5)
     ax.bar(x + 0.5 * width, df["P_continuous_premium_W"] / 1000.0, width,
-           label="Continuous (η=0.70)", color="#2ca02c")
+           label="Continuous (η=0.74)", color="#2ca02c")
     ax.bar(x + 1.5 * width, df["P_peak_premium_W"] / 1000.0, width,
-           label="Peak (η=0.70)", color="#2ca02c", alpha=0.5)
+           label="Peak (η=0.74)", color="#2ca02c", alpha=0.5)
 
     # Two motor sizing tiers:
     #
@@ -398,7 +398,7 @@ def figure_3_motor_power(out_png: Path, out_csv: Path) -> pd.DataFrame:
     ax.set_xticklabels(df["implement"], rotation=35, ha="right", fontsize=8)
     ax.set_ylabel("Electrical power at motor (kW)")
     ax.set_title(
-        "F3. Peak vs continuous motor power — CableTract co-designed implements\n"
+        "Peak vs continuous motor power — CableTract co-designed implements\n"
         "(continuous = P50 draft, peak = P90 draft, both at v = 0.50 m/s)"
     )
     ax.grid(True, axis="y", alpha=0.3)

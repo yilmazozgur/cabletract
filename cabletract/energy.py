@@ -44,6 +44,7 @@ References for the synthesis model:
 from __future__ import annotations
 
 import math
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Tuple
@@ -184,11 +185,12 @@ def synthesize_tmy_year(
        which the published clearness index `Kt` is defined in NSRDB / PVGIS.
     2. We multiply by the monthly `Kt` to obtain the mean surface irradiance
        for that month.
-    3. We modulate hour-to-hour by a stochastic cloud factor sampled from a
-       Beta(2, 2) distribution scaled to mean 1.0 (so a sunny month with
-       Kt=0.7 still has cloudy hours, and a cloudy month with Kt=0.3 still
-       has bright hours), and clamp the result by `clear_sky_ghi` so the
-       synthesised hourly value never exceeds the Haurwitz physical maximum.
+    3. We modulate by a stochastic cloud factor with a persistent daily
+       state (AR(1) Gaussian copula over a 2×Beta(4,4) marginal, lag-1
+       rho = 0.65) times a mean-1.0 hourly jitter, so multi-day overcast
+       and bright spells occur; the result is clamped by `clear_sky_ghi`
+       so the synthesised hourly value never exceeds the Haurwitz
+       physical maximum.
     4. Wind speed is drawn from a Weibull(k=2.0, scale=monthly_mean*1.128)
        distribution every hour. The 1.128 ≈ 1/Γ(1.5) makes the Weibull
        mean equal the published monthly mean.
@@ -205,7 +207,26 @@ def synthesize_tmy_year(
     if not isinstance(meta_obj, SiteMeta):
         raise TypeError("internal error: load_site_meta returned dict")
     meta = meta_obj
-    rng = np.random.default_rng(seed + hash(site) % 2**32)
+    # Deterministic per-site seed. v2 used Python's salted string hash()
+    # here, which made every process re-run produce a different weather
+    # year and silently broke the pipeline's reproducibility promise.
+    rng = np.random.default_rng(seed + zlib.crc32(site.encode("utf8")))
+
+    # Day-level cloud state with first-order (AR(1)) persistence, so that
+    # multi-day overcast or bright spells occur — the quantity that
+    # actually sizes the battery and the annual grid backup. v2 sampled
+    # the cloud factor i.i.d. per hour, which averages out within a day
+    # and systematically understates multi-day deficits. The daily state
+    # is a Gaussian copula over the same 2×Beta(4,4) marginal (mean 1.0),
+    # with lag-1 autocorrelation rho ≈ 0.65 (typical for the daily
+    # clearness index, cf. Aguiar et al. 1988 Markov-matrix approach).
+    from scipy.stats import beta as _beta_dist, norm as _norm_dist
+    rho_day = 0.65
+    z = float(rng.standard_normal())
+    daily_cloud = np.empty(366)
+    for d in range(366):
+        z = rho_day * z + math.sqrt(1.0 - rho_day**2) * float(rng.standard_normal())
+        daily_cloud[d] = 2.0 * float(_beta_dist.ppf(_norm_dist.cdf(z), 4.0, 4.0))
 
     timestamps = pd.date_range(start=f"{year}-01-01 00:00", periods=8760, freq="1h")
     rows = []
@@ -218,10 +239,10 @@ def synthesize_tmy_year(
         ghi_et = extraterrestrial_ghi(meta.latitude, doy, hour)
         ghi_max = clear_sky_ghi(meta.latitude, doy, hour)
         kt = float(meta.Kt[month_idx])
-        # Beta(4,4) has mean 0.5, std 0.158 → scale to mean 1.0. The narrower
-        # distribution (vs Beta(2,2)) reduces high-cloud-factor outliers that
-        # would otherwise get clamped by the Haurwitz ceiling at low latitudes.
-        cloud = 2.0 * float(rng.beta(4.0, 4.0))
+        # Cloud factor = persistent daily state × mean-1.0 hourly jitter
+        # (0.5 + Beta(4,4) has mean 1.0, range 0.5–1.5).
+        hourly_jitter = 0.5 + float(rng.beta(4.0, 4.0))
+        cloud = float(daily_cloud[doy - 1]) * hourly_jitter
         ghi = max(0.0, min(kt * ghi_et * cloud, ghi_max))
 
         # Weibull wind, k=2, scale chosen so the mean equals the monthly mean

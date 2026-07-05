@@ -38,7 +38,10 @@ def run_single(p: CableTractParams) -> CableTractResults:
         + p.implement_weight_N * p.span_m
         + p.system_weight_N * p.system_travel_per_round_m
     )
-    energy_per_round_Wh = work_per_round_J / 3600.0 / p.winch_efficiency
+    energy_per_round_Wh = (
+        work_per_round_J / 3600.0 / p.winch_efficiency
+        + p.anchoring_energy_Wh_per_round
+    )
     energy_per_decare_Wh = energy_per_round_Wh * rounds_per_decare
 
     harvested_energy_per_day_Wh = (

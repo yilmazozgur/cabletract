@@ -171,12 +171,16 @@ def figure_4_draft_comparison(out_png: Path, out_csv: Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def figure_5_speed_dependence(out_png: Path, out_csv: Path) -> pd.DataFrame:
-    selected = ["row_planter", "chisel_plow_twisted", "moldboard_plow"]
+    # v3: plot the CODESIGNED implements the manuscript discusses (v2
+    # plotted three conventional implements while the caption described
+    # codesigned ones). The three span the D497 coefficient regimes.
+    selected = ["codesign_planter_4row", "narrow_chisel_4tool", "narrow_ripper_1shank"]
     speeds = np.linspace(0.5, 12.0, 60)
+    library = load_cabletract_implement_library()
 
     rows = []
     for name in selected:
-        imp = implement_by_name(name)
+        imp = implement_by_name(name, library=library)
         depth = imp.typical_depth_cm
         for s in speeds:
             D = imp.draft_N(speed_km_h=s, depth_cm=depth, soil_texture="medium", moisture=0.20)
@@ -185,11 +189,11 @@ def figure_5_speed_dependence(out_png: Path, out_csv: Path) -> pd.DataFrame:
     df.to_csv(out_csv, index=False)
 
     fig, ax = plt.subplots(figsize=(9, 5.5))
-    colors = {"row_planter": "#228B22", "chisel_plow_twisted": "#8B4513", "moldboard_plow": "#CD5C5C"}
+    colors = {"codesign_planter_4row": "#228B22", "narrow_chisel_4tool": "#8B4513", "narrow_ripper_1shank": "#CD5C5C"}
     label_map = {
-        "row_planter": "Row planter (B=C=0, speed-independent)",
-        "chisel_plow_twisted": "Chisel plow (B>0, linear in speed)",
-        "moldboard_plow": "Moldboard plow (C>0, quadratic in speed)",
+        "codesign_planter_4row": "Codesigned planter (B=C=0, speed-independent)",
+        "narrow_chisel_4tool": "Narrow chisel (B>0, linear in speed)",
+        "narrow_ripper_1shank": "Narrow ripper (C>0, quadratic in speed)",
     }
     for name in selected:
         sub = df[df["implement"] == name]
@@ -207,7 +211,7 @@ def figure_5_speed_dependence(out_png: Path, out_csv: Path) -> pd.DataFrame:
 
     ax.set_xlabel("Field speed (km/h)")
     ax.set_ylabel("Draft load (kN)")
-    ax.set_title("F5. Speed-dependence of draft — slow operation suppresses the v² term")
+    ax.set_title("Speed-dependence of draft — slow operation suppresses the v² term")
     ax.grid(True, alpha=0.3)
     ax.legend(loc="upper left", fontsize=9)
     fig.tight_layout()
@@ -260,11 +264,11 @@ def main() -> None:
     )
 
     print()
-    print("F5. Speed dependence — moldboard draft growth from 2 to 8 km/h:")
-    mb_2 = f5[(f5["implement"] == "moldboard_plow") & (np.isclose(f5["speed_km_h"], 2.0, atol=0.15))]["draft_N"].iloc[0]
-    mb_8 = f5[(f5["implement"] == "moldboard_plow") & (np.isclose(f5["speed_km_h"], 8.0, atol=0.15))]["draft_N"].iloc[0]
-    print(f"  moldboard@2 km/h = {mb_2:.0f} N")
-    print(f"  moldboard@8 km/h = {mb_8:.0f} N  ({mb_8/mb_2:.2f}x)")
+    print("F5. Speed dependence — narrow-ripper draft growth from 2 to 8 km/h:")
+    nr_2 = f5[(f5["implement"] == "narrow_ripper_1shank") & (np.isclose(f5["speed_km_h"], 2.0, atol=0.15))]["draft_N"].iloc[0]
+    nr_8 = f5[(f5["implement"] == "narrow_ripper_1shank") & (np.isclose(f5["speed_km_h"], 8.0, atol=0.15))]["draft_N"].iloc[0]
+    print(f"  narrow ripper@2 km/h = {nr_2:.0f} N")
+    print(f"  narrow ripper@8 km/h = {nr_8:.0f} N  ({nr_8/nr_2:.2f}x, i.e. {100*(1-nr_2/nr_8):.0f}% lower draft at 2 km/h)")
 
     print()
     print(f"Figures written to {OUT_DIR.resolve()}")

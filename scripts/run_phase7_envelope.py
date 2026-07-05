@@ -59,6 +59,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from cabletract.economics import (  # noqa: E402
+    cabletract_npv_additive,
     EconParams,
     cabletract_npv_vs_diesel,
     cabletract_payback_vs_diesel,
@@ -126,6 +127,7 @@ def _sweep_envelope(
 
     surplus = np.zeros((len(farm_size_axis), len(annual_ghi_axis)))
     npv = np.zeros_like(surplus)
+    npv_add = np.zeros_like(surplus)
     payback = np.zeros_like(surplus)
 
     for i, farm_ha in enumerate(farm_size_axis):
@@ -148,9 +150,10 @@ def _sweep_envelope(
 
             surplus[i, j] = harvest_kWh_yr - demand_kWh_yr
             npv[i, j] = cabletract_npv_vs_diesel(p)
+            npv_add[i, j] = cabletract_npv_additive(p)
             payback[i, j] = cabletract_payback_vs_diesel(p)
 
-    return surplus, npv, payback
+    return surplus, npv, npv_add, payback
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +181,7 @@ def figure_21_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
 
     print()
     print("  Sweeping baseline scenario (diesel @ 1.40 €/L)...")
-    surplus, npv, payback = _sweep_envelope(
+    surplus, npv, npv_add, payback = _sweep_envelope(
         base, annual_ghi_axis, farm_size_axis, alpha, decares_per_day,
     )
 
@@ -191,6 +194,7 @@ def figure_21_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
                 "farm_size_ha": float(farm_ha),
                 "surplus_kWh_yr": float(surplus[i, j]),
                 "npv_eur": float(npv[i, j]),
+                "npv_additive_eur": float(npv_add[i, j]),
                 "payback_yr": float(payback[i, j]),
             })
     df = pd.DataFrame(rows)
@@ -223,14 +227,14 @@ def figure_21_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
     ax_map.set_yscale("log")
     ax_map.set_xlabel("Annual global horizontal irradiance, GHI (kWh m$^{-2}$ yr$^{-1}$)", fontsize=11)
     ax_map.set_ylabel("Annual operating area (ha, log scale)", fontsize=11)
-    ax_map.set_title("(a) Off-grid energy balance over (GHI × farm size)", fontsize=11)
+    ax_map.set_title("(a) Annual energy balance over (GHI × farm size)", fontsize=11)
 
     # Off-grid breakeven contour (the only one that exists in the
     # swept range — see module docstring).
     cs = ax_map.contour(GHI, FARM, surplus, levels=[0.0],
                         colors="black", linewidths=2.4, linestyles="-")
-    if cs.collections:
-        ax_map.clabel(cs, fmt={0.0: "off-grid breakeven"},
+    if any(len(segs) for segs in cs.allsegs):
+        ax_map.clabel(cs, fmt={0.0: "annual breakeven"},
                       fontsize=10, inline=True, inline_spacing=6)
 
     # Site scatter at 25 ha annual area, with staggered labels.
@@ -252,7 +256,7 @@ def figure_21_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
                                         color="black", lw=0.6))
 
     cbar = fig.colorbar(im, ax=ax_map, fraction=0.046, pad=0.02)
-    cbar.set_label("Annual off-grid surplus (kWh/yr)\ngreen = energy positive · red = grid needed",
+    cbar.set_label("Annual energy surplus (kWh/yr)\ngreen = energy positive · red = grid needed",
                    fontsize=9)
 
     # ----- Right panel: discounted payback histogram across all cells -----
@@ -289,9 +293,9 @@ def figure_21_envelope(out_png: Path, out_csv: Path) -> pd.DataFrame:
 
     fig.suptitle(
         "F21. CableTract operating envelope — codesigned reference, diesel @ 1.40 €/L\n"
-        "(a) Off-grid energy balance: PV harvest minus annual demand on (GHI × farm size). "
-        "Black contour: off-grid breakeven. (b) Discounted payback distribution across every cell of (a) — "
-        "the financial story is uniformly favourable, so the binding constraint is climate, not finance.",
+        "(a) Annual energy balance: PV harvest minus annual demand on (GHI × farm size); an annual-surplus test, "
+        "not hourly autonomy. Black contour: annual breakeven. (b) Discounted payback distribution across the "
+        "same cells, replacement frame.",
         fontsize=11, y=1.02,
     )
     fig.tight_layout()

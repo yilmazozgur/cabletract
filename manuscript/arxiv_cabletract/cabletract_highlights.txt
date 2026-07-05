@@ -1,0 +1,5 @@
+Cable-driven field robot keeps heavy bodies off-field; a ~250 kg carriage tills.
+Implement co-design cuts median draft ~63%, closing the energy and anchor budgets.
+~4x less drawbar energy and ~98% less compacted area than an 80 hp diesel tractor.
+NPV-positive as a tractor replacement; off-grid feasibility is climate-dependent.
+Five higher-fidelity models bound anchor, depth-control and cable-safety risks.

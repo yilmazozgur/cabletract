@@ -63,6 +63,11 @@ class CableTractParams:
     cost_cabletract_usd: float = 15000.0
     sales_margin_pct: float = 33.0
     shape_efficiency: float = 1.0           # 1.0 means ideal rectangular field
+    # Electrical energy for one full re-anchoring cycle (all Anchor + MU
+    # ground screws inserted and retracted once, cabletract.anchoring).
+    # 0.0 preserves the legacy generic baseline, which carried no
+    # anchoring-energy term; the codesigned reference charges it.
+    anchoring_energy_Wh_per_round: float = 0.0
 
     @classmethod
     def codesigned(cls) -> "CableTractParams":
@@ -84,35 +89,43 @@ class CableTractParams:
           because the bodies no longer need to survive a 6 t tractor's
           hitch loads. Frame steel mass drops from ~120 kg to ~70 kg per
           implement.
-        - ``system_weight_N = 2200``: smaller motor (1.5 kW vs 3 kW),
-          smaller battery (9 vs 15 kWh), narrower carriage frame.
+        - ``system_weight_N = 2200``: smaller motor (2.0 kW continuous /
+          3.0 kW peak), smaller battery (9 vs 15 kWh), narrower carriage
+          frame. The 2200 N is a rolling-resistance force over the 2.0 m
+          lateral repositioning distance per round (strip width 1.5 m
+          plus 0.5 m manoeuvre allowance).
         - ``solar_area_m2 = 15``: lower energy demand allows a smaller PV
           array — reduces capex and visual footprint.
         - ``battery_Wh = 9000``: peak winch input drops from ~3 kW to
           ~1.5 kW, so the battery just needs to bridge the off-PV hours
           rather than carry a heavy load surge.
-        - ``cost_cabletract_usd = 35870``: itemised BOM total from the
+        - ``cost_cabletract_usd = 38670``: itemised BOM total from the
           Phase 5 economics chain (``EconParams.codesigned``):
           €17,800 main unit (incl. €300 regen-capable four-quadrant drive)
-          + €7,500 anchor + €3,420 battery (9 kWh) + €1,650 PV (15 m²) +
-          €1,500 wind + €4,000 install. The legacy
-          generic baseline used €11,500 as a placeholder lump sum; the
-          codesigned reference now mirrors §5.8 so the variant table and
-          the NPV chain agree on the same number. Currency is nominal
-          EUR — the field name still says ``usd`` for backwards
+          + €7,500 anchor + €2,800 implement carriage + €3,420 battery
+          (9 kWh) + €1,650 PV (15 m²) + €1,500 wind + €4,000 install.
+          The co-designed implement set (~€9,500) is carried on BOTH
+          sides of the economic comparison (a replacing farmer at fleet
+          renewal buys implements either way), so it is excluded from
+          this machine capex but reported in ``EconParams``. Currency is
+          nominal EUR — the field name still says ``usd`` for backwards
           compatibility with the legacy CSVs.
         - ``span_m`` and ``setup_time_s``: unchanged. Span is set by the
           field, setup is set by the operator.
         - ``operating_days_per_year``: unchanged at 170. The co-design
           does not change the agronomic calendar.
-        - ``winch_efficiency = 0.606``: regenerative braking on the unloaded
+        - ``winch_efficiency = 0.518``: regenerative braking on the unloaded
           return leg is part of the default design. Phase 1's decomposed
           one-way drivetrain chain (motor × controller × gearbox × drum ×
-          pulley × cable) gives 0.50; four-quadrant regen recovery on the
-          return leg lifts the *effective round-trip* efficiency the energy
-          budget uses to 0.50 × 1.21 ≈ 0.606. Motor sizing still uses the
-          one-way 0.50/0.74 chain (peak loaded pull); only the energy budget
-          benefits from regen.
+          pulley × cable) gives 0.50; the four-quadrant drive recovers a
+          slope-averaged ~3.5% (slope PE dominated; ~0 on flat ground),
+          giving an effective 0.518 for the energy budget. Motor sizing
+          still uses the one-way 0.50/0.74 chain (peak loaded pull).
+        - ``anchoring_energy_Wh_per_round = 25.3``: electrical energy to
+          insert and retract all 9 Anchor + 4 Main-Unit ground screws
+          once per round (``cabletract.anchoring``, 1.0 m screws at
+          90 N·m final torque, drive eta 0.70). v2 carried no anchoring
+          energy term; v3 charges it explicitly.
         """
         return cls(
             span_m=50.0,
@@ -136,9 +149,10 @@ class CableTractParams:
             fuel_price_usd_per_l=1.40,
             electric_tractor_Wh_per_decare=4000.0,
             electricity_price_usd_per_Wh=0.00016,
-            cost_cabletract_usd=35870.0,  # +300 regen-capable four-quadrant drive
+            cost_cabletract_usd=38670.0,  # machine incl. carriage; implements excluded (carried on both sides)
             sales_margin_pct=33.0,
             shape_efficiency=1.0,
+            anchoring_energy_Wh_per_round=25.3,  # cabletract.anchoring, 13 screws x 1.0 m
         )
 
 

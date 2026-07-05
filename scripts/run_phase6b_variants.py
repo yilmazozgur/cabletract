@@ -34,7 +34,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     TAB_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("Comparing 3 architectural variants on the codesigned reference parameter set...")
+    print("Comparing 4 architectural variants on the codesigned reference parameter set...")
     all_rows = compare_all_variants(CableTractParams.codesigned())
     # Keep only the three variants the manuscript discusses: codesigned
     # baseline (regen default), CableTract+ (4-MU planar cable robot), and
@@ -42,6 +42,7 @@ def main() -> None:
     # Circular pulley and drone alignment are dropped.
     keep = {
         "Codesigned baseline (regen default)",
+        "Multi-strip anchoring (beam, k=4)",
         "CableTract+ (4-Main-Unit cable robot)",
         "Unidirectional drivetrain (no regen)",
     }
@@ -60,7 +61,7 @@ def main() -> None:
     metrics = [
         ("decares_per_day_offgrid", "Throughput (decares/day, off-grid)", "#2a7a2a", False),
         ("energy_per_decare_Wh",    "Energy intensity (Wh/decare)",        "#1f77b4", False),
-        ("cost_cabletract_usd",     "CAPEX (USD)",                         "#d4a017", False),
+        ("cost_cabletract_usd",     "CAPEX (EUR)",                         "#d4a017", False),
         ("payback_months_vs_fuel",  "Payback vs diesel (months)",          "#d62728", False),
         ("surplus_power_W",         "Surplus power (W)",                   "#9467bd", False),
     ]
@@ -75,6 +76,7 @@ def main() -> None:
 
     short_labels = [
         "Codesigned\nbaseline\n(regen)",
+        "Multi-strip\nanchoring\n(beam, k=4)",
         "CableTract+\n(4-MU)",
         "Unidirectional\n(no regen)",
     ]
@@ -100,7 +102,7 @@ def main() -> None:
         bars[0].set_linewidth(2.4)
 
     fig.suptitle(
-        "F20. Architectural variant comparison on the codesigned reference parameter set\n"
+        "Architectural variant comparison on the codesigned reference parameter set\n"
         "Codesigned baseline outlined in black. Lower is better for energy, CAPEX, and payback;\n"
         "higher is better for throughput and surplus.",
         fontsize=12,

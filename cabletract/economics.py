@@ -139,15 +139,25 @@ class EconParams:
     # CableTract system
     capex_main_unit_eur: float = 18000.0       # Main Unit (PMSM, drum, cable, electronics, frame)
     capex_anchor_eur: float = 9000.0           # Anchor (auger drive, frame, sensors)
-    capex_battery_eur_per_kWh: float = 380.0   # 2024 Li-ion pack price
+    capex_carriage_eur: float = 0.0            # implement carriage (frame, rollers, gauge wheel, downforce actuator)
+    capex_battery_eur_per_kWh: float = 380.0   # small-pack retail price (~3x the BNEF volume cell average)
     battery_capacity_kWh: float = 10.0
     capex_pv_eur_per_m2: float = 110.0         # mono-Si module + BoS
     pv_area_m2: float = 8.0
     capex_wind_eur: float = 1500.0             # 600 W small turbine inc. mast
     capex_install_overhead_eur: float = 4000.0 # crating, transport, commissioning
+    # Implement set. A replacing farmer at fleet renewal buys implements
+    # under EITHER system (the co-designed narrow implements cannot be
+    # sourced used, but conventional used implements also cost money), so
+    # the implement set is carried on BOTH sides of the comparison and
+    # nets out of the capex delta; both values are reported for
+    # transparency and the delta is a tornado axis.
+    capex_implements_eur: float = 0.0          # co-designed 10-implement set
+    diesel_implements_eur: float = 0.0         # conventional (used) implement set
 
     # CableTract opex
-    opex_maintenance_frac_per_yr: float = 0.04 # 4% of capex per year
+    opex_maintenance_frac_per_yr: float = 0.04 # 4% of machine capex per year
+    opex_cable_eur_per_yr: float = 0.0         # cable replacement line (UV/abrasion-limited, S2)
     battery_replacement_year: int = 8          # year to replace battery once
     pv_replacement_year: int = 0               # 0 disables (PV outlives the project)
 
@@ -176,37 +186,41 @@ class EconParams:
     def codesigned(cls) -> "EconParams":
         """Co-designed reference economic parameters.
 
-        Mirrors :meth:`cabletract.params.CableTractParams.codesigned`. The
-        Main Unit cost is essentially unchanged because the smaller frame
-        savings are offset by a slightly larger motor (5 kW continuous to
-        cover the heaviest co-designed implement). The big movers are:
+        Mirrors :meth:`cabletract.params.CableTractParams.codesigned`.
+        The big movers vs the generic baseline:
 
-        - **Anchor**: 6 augers (median co-designed operation) instead of 8,
-          smaller drive train, ~17 % cheaper.
-        - **Battery**: 9 kWh instead of 10 kWh — peak power is lower so the
-          buffer can be smaller.
-        - **PV**: 15 m² instead of 8 m² — the codesigned system relies more
-          heavily on direct PV harvest and less on battery cycling.
-        - **Energy per hectare**: 9.21 kWh/ha instead of 16.6 kWh/ha
-          (-45 %), reflecting the actual ``run_single`` output of the
-          co-designed parameter set on the same operations. This is the
-          *operational* dividend of co-design and is the main contributor
-          to the improved payback / NPV.
+        - **Anchor**: 9 small ground screws (3x3 cluster) with parallel
+          BLDC drives, no high-power electronics, ~17 % cheaper.
+        - **Carriage**: costed explicitly at €2,800 (v2 omitted it).
+        - **Implement set**: €9,500 carried on BOTH sides (see field
+          comments) so it nets out of the capex delta.
+        - **Battery**: 9 kWh instead of 10 kWh.
+        - **PV**: 15 m² instead of 8 m².
+        - **Energy per hectare**: 12.27 kWh/ha from
+          ``run_single(codesigned())`` with the anchoring-energy term
+          charged (v2 used 8.89 kWh/ha with anchoring free).
+        - **Cable opex**: €180/yr Dyneema replacement (UV/abrasion-
+          limited at ~8 yr, study S2), folded into the reference cash
+          flow (v2 reported it but excluded it from the headline).
         """
         return cls(
             capex_main_unit_eur=17800.0,         # smaller frame + €300 regen-capable four-quadrant drive (default)
-            capex_anchor_eur=7500.0,             # 6 augers + smaller drive, ~-17 %
+            capex_anchor_eur=7500.0,             # 9 parallel ground-screw drives, no high-power electronics
+            capex_carriage_eur=2800.0,           # frame, rollers, gauge wheel, down-pressure actuator
             capex_battery_eur_per_kWh=380.0,
             battery_capacity_kWh=9.0,            # was 10
             capex_pv_eur_per_m2=110.0,
             pv_area_m2=15.0,                     # was 8 — co-design rebalances toward direct PV
             capex_wind_eur=1500.0,
             capex_install_overhead_eur=4000.0,
+            capex_implements_eur=9500.0,         # 10 co-designed implements (~€950 avg)
+            diesel_implements_eur=9500.0,        # conventional used implement set (netting assumption)
             opex_maintenance_frac_per_yr=0.04,
+            opex_cable_eur_per_yr=180.0,         # Dyneema replacement, S2
             battery_replacement_year=8,
             pv_replacement_year=0,
             annual_hectares=25.0,
-            energy_per_ha_kWh=8.89,              # 889 Wh/decare from run_single(codesigned()), regen default (small honest credit)
+            energy_per_ha_kWh=12.27,             # 1226.8 Wh/decare from run_single(codesigned()), incl. anchoring energy
             grid_share_kWh_per_ha=0.0,
             grid_price_eur_per_kWh=0.18,
             diesel_litres_per_ha=12.0,
@@ -214,7 +228,7 @@ class EconParams:
             diesel_capex_eur=35000.0,
             diesel_maint_frac_per_yr=0.05,
             electric_capex_eur=65000.0,
-            electric_kWh_per_ha=22.0,
+            electric_kWh_per_ha=40.0,            # consistent with ~36 kWh/ha drawbar / 0.9 charger+drivetrain
             electric_maint_frac_per_yr=0.03,
             horizon_years=15,
             discount_rate=0.08,
@@ -222,10 +236,14 @@ class EconParams:
 
 
 def cabletract_capex(p: EconParams) -> float:
-    """Total CableTract capex from the EconParams record."""
+    """CableTract MACHINE capex (Main Unit + Anchor + carriage + energy
+    stack + install), excluding the implement set — implements are
+    carried symmetrically on both sides of the comparison (see
+    ``EconParams``) and reported separately."""
     return (
         p.capex_main_unit_eur
         + p.capex_anchor_eur
+        + p.capex_carriage_eur
         + p.capex_battery_eur_per_kWh * p.battery_capacity_kWh
         + p.capex_pv_eur_per_m2 * p.pv_area_m2
         + p.capex_wind_eur
@@ -233,16 +251,39 @@ def cabletract_capex(p: EconParams) -> float:
     )
 
 
+def cabletract_system_capex(p: EconParams) -> float:
+    """Machine capex plus the co-designed implement set (the full
+    system price an additive buyer finances)."""
+    return cabletract_capex(p) + p.capex_implements_eur
+
+
 def cabletract_annual_opex(p: EconParams) -> float:
-    """CableTract annual opex (maintenance + grid energy)."""
+    """CableTract annual opex (maintenance on machine capex + cable
+    replacement line + grid energy)."""
     capex = cabletract_capex(p)
     grid_kWh = p.grid_share_kWh_per_ha * p.annual_hectares
-    return p.opex_maintenance_frac_per_yr * capex + grid_kWh * p.grid_price_eur_per_kWh
+    return (
+        p.opex_maintenance_frac_per_yr * capex
+        + p.opex_cable_eur_per_yr
+        + grid_kWh * p.grid_price_eur_per_kWh
+    )
 
 
 def diesel_annual_opex(p: EconParams) -> float:
     diesel_l = p.diesel_litres_per_ha * p.annual_hectares
     return diesel_l * p.diesel_price_eur_per_litre + p.diesel_maint_frac_per_yr * p.diesel_capex_eur
+
+
+def diesel_annual_opex_hourly(p: EconParams, rm_eur_per_hour: float = 8.0,
+                              work_rate_ha_per_hour: float = 0.7) -> float:
+    """Sensitivity variant: diesel R&M scaled with accumulated use hours
+    (ASABE EP496-style) instead of a flat capex fraction. At 25 ha/yr and
+    ~0.7 ha/h an 80 hp tractor runs ~36 h/yr; at ~8 EUR/h R&M that is
+    ~290 EUR/yr instead of the flat 1,750 EUR/yr. Used for the
+    maintenance-basis sensitivity discussion, not the default chain."""
+    hours = p.annual_hectares / max(work_rate_ha_per_hour, 1e-9)
+    diesel_l = p.diesel_litres_per_ha * p.annual_hectares
+    return diesel_l * p.diesel_price_eur_per_litre + rm_eur_per_hour * hours
 
 
 def electric_annual_opex(p: EconParams) -> float:
@@ -268,9 +309,39 @@ def cabletract_cashflow_series(p: EconParams) -> List[float]:
 
 
 def cabletract_npv_vs_diesel(p: EconParams) -> float:
-    """NPV of (CableTract savings - diesel cost) over the horizon."""
-    capex_delta = cabletract_capex(p) - p.diesel_capex_eur
+    """Replacement-frame NPV over the horizon.
+
+    Capex delta = (machine + implements) − (diesel tractor + implements);
+    with the netting assumption the implement sets cancel and only the
+    machine difference (incl. the carriage) is at risk."""
+    capex_delta = (
+        cabletract_capex(p) + p.capex_implements_eur
+        - p.diesel_capex_eur - p.diesel_implements_eur
+    )
     return npv(capex_delta, cabletract_cashflow_series(p), p.discount_rate)
+
+
+def cabletract_additive_cashflow_series(p: EconParams) -> List[float]:
+    """Additive-frame per-year net cashflow: NO diesel tractor is
+    retired, so only the avoided diesel FUEL counts as saving (the
+    diesel maintenance line cannot be avoided if the tractor is kept —
+    v2 wrongly credited it in this frame)."""
+    cashflows: List[float] = []
+    ct_opex = cabletract_annual_opex(p)
+    fuel_saving = p.diesel_litres_per_ha * p.annual_hectares * p.diesel_price_eur_per_litre
+    bat_replace_eur = p.capex_battery_eur_per_kWh * p.battery_capacity_kWh
+    for t in range(1, p.horizon_years + 1):
+        cf = fuel_saving - ct_opex
+        if t == p.battery_replacement_year:
+            cf -= bat_replace_eur
+        cashflows.append(cf)
+    return cashflows
+
+
+def cabletract_npv_additive(p: EconParams) -> float:
+    """Additive-frame NPV: the buyer finances the full system (machine +
+    implement set) and retires no tractor."""
+    return npv(cabletract_system_capex(p), cabletract_additive_cashflow_series(p), p.discount_rate)
 
 
 def cabletract_payback_vs_diesel(p: EconParams) -> float:
@@ -316,15 +387,21 @@ def cabletract_bom(p: EconParams, bom_table: pd.DataFrame | None = None) -> List
         bom_table = load_bom_table()
     lookup = {row["component"]: float(row["co2_kg_per_unit"]) for _, row in bom_table.iterrows()}
 
+    # Number of replacement battery packs over the horizon (one at the
+    # replacement year for the 15-yr default) and replacement cables
+    # (UV/abrasion-limited at ~8 yr per study S2 → one spare over 15 yr).
+    n_battery_packs = 2.0 if 0 < p.battery_replacement_year <= p.horizon_years else 1.0
+    n_cables = 2.0 if p.opex_cable_eur_per_yr > 0.0 else 1.0
     out: List[BOMEntry] = [
-        BOMEntry("steel_structural", 250.0, lookup["steel_structural"]),
+        # 250 kg module frames + 120 kg carriage structure
+        BOMEntry("steel_structural", 370.0, lookup["steel_structural"]),
         BOMEntry("aluminium_extrusion", 30.0, lookup["aluminium_extrusion"]),
         BOMEntry("copper_wire", 12.0, lookup["copper_wire"]),
-        BOMEntry("li_ion_battery_cell_kWh", p.battery_capacity_kWh, lookup["li_ion_battery_cell_kWh"]),
+        BOMEntry("li_ion_battery_cell_kWh", p.battery_capacity_kWh * n_battery_packs, lookup["li_ion_battery_cell_kWh"]),
         BOMEntry("silicon_pv_module_m2", p.pv_area_m2, lookup["silicon_pv_module_m2"]),
         BOMEntry("small_wind_turbine_kg", 35.0, lookup["small_wind_turbine_kg"]),
         BOMEntry("power_electronics_motor_controller_kg", 18.0, lookup["power_electronics_motor_controller_kg"]),
-        BOMEntry("steel_cable_uhmwpe_kg", 8.0, lookup["steel_cable_uhmwpe_kg"]),
+        BOMEntry("steel_cable_uhmwpe_kg", 8.0 * n_cables, lookup["steel_cable_uhmwpe_kg"]),
     ]
     return out
 

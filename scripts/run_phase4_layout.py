@@ -88,7 +88,7 @@ def figure_9_shape_efficiency_distribution(out_png: Path, out_csv: Path) -> pd.D
     axes[1].legend(fontsize=9)
     axes[1].grid(True, alpha=0.3)
 
-    fig.suptitle("F9. Shape-efficiency distribution across the 50-field corpus", fontsize=12)
+    fig.suptitle("Shape-efficiency distribution across the 50-field corpus", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_png, dpi=200)
     plt.close(fig)
@@ -136,7 +136,7 @@ def figure_10_strip_plans(out_png: Path) -> None:
         ax.set_title(f"{label} ({field.id})\nη={eta_best:.2f}, sweep={deg_best:.0f}°", fontsize=10)
         ax.grid(True, alpha=0.3)
 
-    fig.suptitle("F10. CableTract strip plan on three representative fields (span L=50 m)", fontsize=12)
+    fig.suptitle("CableTract strip plan on three representative fields (span L=50 m)", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_png, dpi=200)
     plt.close(fig)
@@ -152,11 +152,16 @@ def figure_11_time_budget(out_png: Path, out_csv: Path) -> pd.DataFrame:
     by_size = sorted(fields, key=lambda f: f.nominal_area_ha, reverse=True)[:5]
     total_ha = sum(f.nominal_area_ha for f in by_size)
 
-    # Compute working time per field
-    work_speed_km_h = 3.0  # CableTract operating speed
-    swath_m = 2.0
+    # Compute working time per field at the CODESIGNED reference (v3):
+    # 1.5-m swath, the run_single effective operating speed (~2.2 km/h),
+    # and the same 60-s per-round setup the screening model charges —
+    # v2 used 3 km/h, a 2.0-m swath, and 3 min per 50-m band, which
+    # understated the setup share ~4x relative to the reference model.
+    work_speed_km_h = 2.2       # run_single(codesigned) effective operating speed
+    swath_m = 1.5               # codesigned strip width
     setup_h_per_field = 0.5     # Anchor placement + alignment per field
-    setup_h_per_strip = 0.05    # 3 minutes per strip transition
+    setup_s_per_round = 60.0    # per-round anchoring cycle (tab:codesigned-params)
+    span_m = 50.0
 
     rows = []
     total_work_h = 0.0
@@ -166,10 +171,11 @@ def figure_11_time_budget(out_png: Path, out_csv: Path) -> pd.DataFrame:
         # Approximate working length: polygon area / swath, scaled by 1/eta
         work_length_m = (f.polygon.area / swath_m) / max(eta_best, 0.05)
         work_h = work_length_m / (work_speed_km_h * 1000.0)
-        # Strip count from the corpus summary
+        # One 60-s anchoring cycle per 50-m round
+        n_rounds = work_length_m / span_m
         from cabletract.layout import strip_decomposition
         n_strips = len(strip_decomposition(f.polygon, span=50.0, orientation_deg=deg_best))
-        setup_h = setup_h_per_field + setup_h_per_strip * n_strips
+        setup_h = setup_h_per_field + setup_s_per_round * n_rounds / 3600.0
         total_work_h += work_h
         total_setup_h += setup_h
         rows.append(
@@ -179,6 +185,7 @@ def figure_11_time_budget(out_png: Path, out_csv: Path) -> pd.DataFrame:
                 "shape_class": f.shape_class,
                 "eta_best": eta_best,
                 "n_strips": n_strips,
+                "n_rounds": n_rounds,
                 "work_h": work_h,
                 "setup_h": setup_h,
             }
@@ -207,9 +214,9 @@ def figure_11_time_budget(out_png: Path, out_csv: Path) -> pd.DataFrame:
         t.set_color("white")
         t.set_weight("bold")
     ax.set_title(
-        f"F11. Time budget for one full pass over a {len(by_size)}-field, {total_ha:.1f} ha farm\n"
-        f"(largest 5 fields in the corpus, {total_work_h + total_setup_h + travel_h:.1f} h "
-        f"at 3 km/h working / 6 km/h transit)",
+        f"Time budget for one full pass over a {len(by_size)}-field, {total_ha:.1f} ha farm\n"
+        f"(largest 5 fields in the corpus, {total_work_h + total_setup_h + travel_h:.1f} h at the codesigned\n"
+        f"reference: {swath_m:.1f} m swath, {work_speed_km_h:.1f} km/h working, 60 s/round setup, 6 km/h transit)",
         fontsize=11,
     )
     fig.tight_layout()
@@ -276,11 +283,14 @@ def figure_12_compaction_map(out_png: Path, out_csv: Path) -> pd.DataFrame:
                 "tractor_energy_idx": st.compaction_energy_index,
                 "carriage_energy_idx": sc.compaction_energy_index,
                 "energy_reduction_factor": st.compaction_energy_index / max(sc.compaction_energy_index, 1e-9),
+                "tractor_field_p2": st.field_p2_index,
+                "carriage_field_p2": sc.field_p2_index,
+                "field_p2_reduction_factor": st.field_p2_index / max(sc.field_p2_index, 1e-9),
             }
         )
 
     fig.suptitle(
-        "F12. Compaction footprint — conventional tractor vs CableTract carriage\n"
+        "Compaction footprint — conventional tractor vs CableTract carriage\n"
         "Left: tractor traffic covers the whole field (red). Right: only the carriage's narrow strip rolls inside the field (red strips on green polygon). 4 passes / cropping season.",
         fontsize=10,
     )
@@ -312,13 +322,13 @@ def main() -> None:
     print()
     print("=== Phase 4 headline numbers ===")
     print()
-    print("F9. Median best-orientation η per shape class (span=50 m):")
+    print("Median best-orientation η per shape class (span=50 m):")
     sub50 = f9[f9["span_m"] == 50.0]
     for cls in sorted(sub50["shape_class"].unique()):
         vals = sub50[sub50["shape_class"] == cls]["eta_best"]
         print(f"  {cls:20s} n={len(vals):2d}  median={vals.median():.3f}  P10={vals.quantile(0.1):.3f}  P90={vals.quantile(0.9):.3f}")
     print()
-    print("F9. Corpus median η across all 50 fields, by span:")
+    print("Corpus median η across all 50 fields, by span:")
     for span in sorted(f9["span_m"].unique()):
         vals = f9[f9["span_m"] == span]["eta_best"]
         print(f"  L={span:.0f} m  median={vals.median():.3f}  fraction below v1 default 0.85: {(vals < 0.85).mean():.0%}")

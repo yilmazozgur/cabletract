@@ -56,7 +56,12 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     TAB_DIR.mkdir(parents=True, exist_ok=True)
 
-    sec = PileSection()
+    # v3: the installed anchors are 60 mm OD x 1.0 m ground screws (the
+    # geometry the 60-s parallel insert/retract budget and the 25.3
+    # Wh/round anchoring-energy term assume — cabletract.anchoring), not
+    # the 73 mm x 2.0 m construction pile v2 analysed. The deep pile is
+    # retained in the manuscript text as a heavy-anchor option.
+    sec = PileSection(diameter_m=0.060, wall_m=0.004, length_m=1.0)
     soils = [LOOSE_SAND, MEDIUM_DENSE_SAND]
 
     # --- capacities + group nominal table ---

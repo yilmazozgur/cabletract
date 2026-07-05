@@ -23,6 +23,9 @@ from cabletract.params import CableTractParams  # noqa: E402
 from cabletract.simulate import run_single  # noqa: E402
 from cabletract.variants import (  # noqa: E402
     CableTractPlusSpec,
+    MultiStripAnchorSpec,
+    multi_strip_anchor_params,
+    multi_strip_anchor_results,
     CircularPulleySpec,
     DroneAlignmentSpec,
     RegenSpec,
@@ -55,19 +58,56 @@ def test_ctplus_setup_time_lower_than_baseline() -> None:
     assert ct_plus.setup_time_s < base.setup_time_s
 
 
-def test_ctplus_throughput_at_least_1p5x_baseline() -> None:
-    base = CableTractParams()
+def test_ctplus_throughput_above_baseline() -> None:
+    # v3 honest accounting: CT+ gains throughput only from eliminating
+    # the per-round anchoring cycle (setup + anchoring energy), not from
+    # the per-cable tension split, so the gain is modest.
+    base = CableTractParams.codesigned()
     base_r = run_single(base)
     plus_r = cabletract_plus_results(base)
-    assert plus_r.decares_per_day_offgrid > 1.5 * base_r.decares_per_day_offgrid
+    assert plus_r.decares_per_day_offgrid > base_r.decares_per_day_offgrid
 
 
-def test_ctplus_per_cable_draft_below_baseline() -> None:
-    base = CableTractParams()
+def test_ctplus_energy_accounting_honest() -> None:
+    # The tension split relaxes PER-CABLE tension (anchor envelope), but
+    # must NOT be booked as a reduction in soil-draft energy, and the
+    # implement width must not silently widen. The anchoring cycle is
+    # eliminated (corner stations set once per field).
+    base = CableTractParams.codesigned()
     plus = cabletract_plus_params(base)
-    # CableTract+ splits draft across two simultaneous cables
-    assert plus.draft_load_N < base.draft_load_N
+    assert plus.draft_load_N == base.draft_load_N
+    assert plus.width_m == base.width_m
+    assert plus.anchoring_energy_Wh_per_round == 0.0
 
+
+
+def test_multistrip_energy_and_setup_reduced() -> None:
+    # k=4 divides the anchoring energy by 4 and cuts the mean setup time;
+    # draft, width and drivetrain are untouched (honest accounting).
+    base = CableTractParams.codesigned()
+    v4 = multi_strip_anchor_params(base)
+    assert abs(v4.anchoring_energy_Wh_per_round - base.anchoring_energy_Wh_per_round / 4) < 1e-9
+    assert v4.setup_time_s < base.setup_time_s
+    assert v4.draft_load_N == base.draft_load_N
+    assert v4.width_m == base.width_m
+    assert v4.winch_efficiency == base.winch_efficiency
+    assert v4.cost_cabletract_usd > base.cost_cabletract_usd
+
+
+def test_multistrip_throughput_between_baseline_and_ctplus() -> None:
+    base_r = run_single(CableTractParams.codesigned())
+    v4_r = multi_strip_anchor_results(CableTractParams.codesigned())
+    plus_r = cabletract_plus_results(CableTractParams.codesigned())
+    assert base_r.decares_per_day_offgrid < v4_r.decares_per_day_offgrid < plus_r.decares_per_day_offgrid
+
+
+def test_beam_yaw_check_scales_with_k() -> None:
+    from cabletract.anchoring import beam_yaw_per_screw_N
+    y2 = beam_yaw_per_screw_N(3000.0, 0.75)
+    y4 = beam_yaw_per_screw_N(3000.0, 2.25)
+    y6 = beam_yaw_per_screw_N(3000.0, 3.75)
+    assert y2 < y4 < y6
+    assert abs(y4 - 1875.0) < 1.0  # k=4 at P90: within the frame-coupled nominal
 
 # ---------------------------------------------------------------------------
 # Circular pulley
@@ -145,9 +185,9 @@ def test_regen_recovery_zero_is_identity() -> None:
 # compare_all_variants
 # ---------------------------------------------------------------------------
 
-def test_compare_all_variants_returns_5_rows() -> None:
+def test_compare_all_variants_returns_6_rows() -> None:
     rows = compare_all_variants()
-    assert len(rows) == 5
+    assert len(rows) == 6
 
 
 def test_compare_all_variants_unique_names() -> None:
@@ -179,8 +219,11 @@ def test_compare_all_variants_ctplus_highest_throughput() -> None:
 ALL_TESTS = [
     test_ctplus_capex_higher_than_baseline,
     test_ctplus_setup_time_lower_than_baseline,
-    test_ctplus_throughput_at_least_1p5x_baseline,
-    test_ctplus_per_cable_draft_below_baseline,
+    test_ctplus_throughput_above_baseline,
+    test_ctplus_energy_accounting_honest,
+    test_multistrip_energy_and_setup_reduced,
+    test_multistrip_throughput_between_baseline_and_ctplus,
+    test_beam_yaw_check_scales_with_k,
     test_circular_pulley_setup_time_reduced,
     test_circular_pulley_capex_slightly_higher,
     test_circular_pulley_throughput_above_baseline,
@@ -190,7 +233,7 @@ ALL_TESTS = [
     test_regen_increases_effective_winch_efficiency,
     test_regen_reduces_energy_per_decare,
     test_regen_recovery_zero_is_identity,
-    test_compare_all_variants_returns_5_rows,
+    test_compare_all_variants_returns_6_rows,
     test_compare_all_variants_unique_names,
     test_compare_all_variants_baseline_first,
     test_compare_all_variants_ctplus_highest_throughput,

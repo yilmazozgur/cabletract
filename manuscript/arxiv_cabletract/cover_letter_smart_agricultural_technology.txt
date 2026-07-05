@@ -1,0 +1,71 @@
+22 June 2026
+
+To the Editors,
+Smart Agricultural Technology
+
+Dear Editors,
+
+Re: Submission of "CableTract: A Co-Designed Cable-Driven Field Robot for
+Low-Compaction, Off-Grid Capable Agriculture — A Prototype-Free Feasibility
+Framework and Analytical Envelope"
+
+I am pleased to submit the above manuscript for consideration as an original
+research article in Smart Agricultural Technology.
+
+The paper presents an open, reproducible computational framework that integrates
+physics-based modelling, closed-loop control simulation, and techno-economic
+analysis to assess the feasibility of CableTract — a two-module, cable-driven
+autonomous field machine in which a stationary winch and a lighter helical-pile
+anchor tension a cable across a strip, while a lightweight (~250 kg) implement
+carriage performs the field operation. The heavy bodies stay on the headland and
+only the carriage enters the field. The central methodological contribution is a
+co-designed implement library — sized for the cable architecture rather than
+borrowed from conventional tractors — together with a single reproducible
+pipeline that couples cable and anchor mechanics, ASABE D497.7 draft modelling,
+an hourly solar/wind/battery energy simulator over six climate sites, a
+field-coverage planner, a contact-pressure compaction model, discounted-cash-flow
+economics with life-cycle CO2, and a global sensitivity analysis. Five
+higher-fidelity studies — a nonlinear p-y anchor model, a closed-loop
+depth-control co-simulation (PID and model-predictive control), a cable-safety
+model, a soil-tool discrete-element model, and a co-design robustness sweep —
+stress-test the load-bearing assumptions and quantify the dominant engineering
+risks.
+
+Relevance to Smart Agricultural Technology. The work aligns with the journal's
+scope — the integration of advanced computing with control systems for
+agricultural production. It contributes (i) investigator-developed software and
+control models, including a closed-loop depth-control co-simulation and an open
+analysis pipeline, rather than the application of off-the-shelf tools; (ii) a
+quantitative assessment of on-farm energy efficiency and socio-economic viability
+(net present value, payback, and life-cycle CO2) under smart, electrified,
+off-grid-capable operation; and (iii) a soil-preparation and field-robotics
+machine concept directed at the societal challenges of soil health and
+agricultural decarbonisation. All code, data, and figures are openly available,
+so every reported number is independently reproducible.
+
+I wish to be transparent on two points. First, this is a prototype-free
+feasibility study: the results derive from first-principles models built on
+experimentally calibrated standards (for example ASABE D497.7, and published
+helical-pile lateral-capacity and tractor contact-pressure measurements) and are
+validated against analytic limits, and the manuscript explicitly enumerates the
+mechanical risks that a prototype phase must resolve. Second, an earlier version
+of this work is available as a preprint (arXiv:2604.09938); the present
+submission is a substantially revised and extended version that adds the five
+higher-fidelity verification studies described above. Posting of the preprint is
+consistent with the journal's submission policy and does not constitute prior
+publication.
+
+The manuscript is original, has not been published elsewhere, and is not under
+consideration by any other journal. It is single-authored; I declare no competing
+interests, and the research received no specific grant from funding agencies in
+the public, commercial, or not-for-profit sectors. The complete analytical code
+and data are openly available at https://github.com/yilmazozgur/cabletract.
+
+Thank you for considering this submission. I look forward to the reviewers'
+comments.
+
+Sincerely,
+
+Özgür Yılmaz
+Adana Science and Technology University, Adana, Türkiye
+ozguryilmaz@atu.edu.tr
